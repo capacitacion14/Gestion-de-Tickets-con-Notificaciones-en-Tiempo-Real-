@@ -46,17 +46,21 @@ public class TicketCode {
     }
     
     private boolean isValidFormat(String code) {
-        if (code == null || code.length() != 5) {
+        if (code == null) {
             return false;
         }
         
-        String upperCode = code.toUpperCase();
-        if (!upperCode.startsWith("T")) {
+        String trimmedCode = code.trim().toUpperCase();
+        if (trimmedCode.length() != 5) {
+            return false;
+        }
+        
+        if (!trimmedCode.startsWith("T")) {
             return false;
         }
         
         try {
-            int sequence = Integer.parseInt(upperCode.substring(1));
+            int sequence = Integer.parseInt(trimmedCode.substring(1));
             return sequence >= 1000 && sequence <= 9999;
         } catch (NumberFormatException e) {
             return false;

@@ -66,7 +66,7 @@ class TicketCodeTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "   ", "T100", "T10000", "A1001", "T1ABC", "1001", "TT1001"})
+    @ValueSource(strings = {"T100", "T10000", "A1001", "T1ABC", "1001", "TT1001"})
     @DisplayName("Should throw exception for invalid code formats")
     void shouldThrowExceptionForInvalidFormats(String invalidCode) {
         // When & Then
@@ -76,6 +76,19 @@ class TicketCodeTest {
         );
         
         assertTrue(exception.getMessage().contains("must follow format T####"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    @DisplayName("Should throw exception for empty codes")
+    void shouldThrowExceptionForEmptyCodes(String emptyCode) {
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> TicketCode.of(emptyCode)
+        );
+        
+        assertEquals("TicketCode cannot be null or empty", exception.getMessage());
     }
 
     @Test

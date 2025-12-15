@@ -109,7 +109,7 @@ public class QueueDomainService {
         }
         
         int totalCapacity = activeQueues.stream()
-                .filter(Queue::isActive)
+                .filter(queue -> queue.isActive())
                 .mapToInt(Queue::getMaxCapacity)
                 .sum();
         
@@ -130,7 +130,7 @@ public class QueueDomainService {
         }
         
         int totalCapacity = activeQueues.stream()
-                .filter(Queue::isActive)
+                .filter(queue -> queue.isActive())
                 .mapToInt(Queue::getMaxCapacity)
                 .sum();
         

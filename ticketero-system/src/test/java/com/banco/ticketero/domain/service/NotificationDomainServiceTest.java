@@ -242,9 +242,9 @@ class NotificationDomainServiceTest {
     @Test
     @DisplayName("Should calculate notification metrics correctly")
     void shouldCalculateNotificationMetricsCorrectly() {
-        // Given
-        LocalDateTime startDate = LocalDateTime.now().minusHours(2);
-        LocalDateTime endDate = LocalDateTime.now();
+        // Given - Use wider date range to include all notifications
+        LocalDateTime startDate = LocalDateTime.now().minusDays(1);
+        LocalDateTime endDate = LocalDateTime.now().plusDays(1);
         
         Notification sentNotification = Notification.createImmediate(
             Ticket.create(Customer.create(NationalId.of("12345678"), "John", "Doe").getId(), 

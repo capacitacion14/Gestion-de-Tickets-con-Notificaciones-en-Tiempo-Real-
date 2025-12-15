@@ -66,7 +66,7 @@ public class NationalId {
             return false;
         }
         
-        // Debe tener entre 8 y 20 dígitos
+        // Debe tener entre 8 y 20 dígitos y ser solo números
         return cleanValue.length() >= 8 && cleanValue.length() <= 20 && cleanValue.matches("\\d+");
     }
     

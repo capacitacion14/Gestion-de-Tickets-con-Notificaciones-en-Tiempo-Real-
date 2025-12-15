@@ -121,13 +121,10 @@ class CreateTicketUseCaseTest {
     @Test
     @DisplayName("Should throw exception for invalid queue type")
     void shouldThrowExceptionForInvalidQueueType() {
-        // Given
-        CreateTicketRequest request = new CreateTicketRequest("12345678", "INVALID_QUEUE");
-        
-        // When & Then
+        // When & Then - The validation happens in CreateTicketRequest constructor
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> createTicketUseCase.execute(request)
+                () -> new CreateTicketRequest("12345678", "INVALID_QUEUE")
         );
         
         assertTrue(exception.getMessage().contains("Invalid queue type"));
@@ -200,7 +197,7 @@ class CreateTicketUseCaseTest {
         verify(queueRepository).findByQueueType(QueueType.VIP);
         verify(ticketRepository).findByQueueTypeAndStatus(QueueType.VIP, TicketStatus.PENDING);
         verify(queueDomainService).canAcceptNewTicket(queue, 0);
-        verify(ticketRepository).findAll();
+        // Note: findAll() is not called in current implementation, using findByQueueTypeAndStatus instead
         verify(ticketDomainService).generateNextTicketCode(anyList());
         verify(queueDomainService).calculateQueuePosition(anyList(), eq(QueueType.VIP));
         verify(queueDomainService).calculateEstimatedWaitTime(queue, 1);

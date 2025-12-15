@@ -84,7 +84,7 @@ class CustomerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "   ", "A", "Very long name that exceeds fifty characters limit"})
+    @ValueSource(strings = {"", "   ", "A", "Very long name that definitely exceeds fifty characters limit"})
     @DisplayName("Should throw exception for invalid first name")
     void shouldThrowExceptionForInvalidFirstName(String invalidFirstName) {
         // When & Then
@@ -97,7 +97,7 @@ class CustomerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "   ", "B", "Very long last name that exceeds fifty characters limit"})
+    @ValueSource(strings = {"", "   ", "B", "Very long last name that definitely exceeds fifty characters limit"})
     @DisplayName("Should throw exception for invalid last name")
     void shouldThrowExceptionForInvalidLastName(String invalidLastName) {
         // When & Then

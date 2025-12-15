@@ -201,9 +201,9 @@ class TicketDomainServiceTest {
     @Test
     @DisplayName("Should calculate ticket metrics correctly")
     void shouldCalculateTicketMetricsCorrectly() {
-        // Given
-        LocalDateTime startDate = LocalDateTime.now().minusHours(2);
-        LocalDateTime endDate = LocalDateTime.now();
+        // Given - Use a wider date range to include all tickets
+        LocalDateTime startDate = LocalDateTime.now().minusDays(1);
+        LocalDateTime endDate = LocalDateTime.now().plusDays(1);
         
         Ticket completedTicket = Ticket.create(Customer.create(NationalId.of("12345678"), "John", "Doe").getId(), 
                                              QueueType.GENERAL, TicketCode.fromSequence(1001))

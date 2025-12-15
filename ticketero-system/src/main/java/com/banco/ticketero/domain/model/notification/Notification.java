@@ -183,7 +183,7 @@ public class Notification {
      * Verifica si la notificación puede ser reintentada.
      */
     public boolean canRetry() {
-        return status == NotificationStatus.FAILED && retryCount < 5;
+        return (status == NotificationStatus.FAILED || (status == NotificationStatus.PENDING && retryCount > 0)) && retryCount < 5;
     }
     
     /**

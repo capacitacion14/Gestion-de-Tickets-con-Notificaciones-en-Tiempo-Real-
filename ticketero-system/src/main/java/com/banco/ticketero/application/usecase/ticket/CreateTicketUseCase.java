@@ -62,7 +62,7 @@ public class CreateTicketUseCase {
         }
         
         // 4. Generar código de ticket
-        List<TicketCode> existingCodes = ticketRepository.findAll().stream()
+        List<TicketCode> existingCodes = existingTickets.stream()
                 .map(Ticket::getTicketCode)
                 .toList();
         TicketCode ticketCode = ticketDomainService.generateNextTicketCode(existingCodes);

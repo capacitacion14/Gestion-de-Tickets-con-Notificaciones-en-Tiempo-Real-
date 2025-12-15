@@ -22,11 +22,19 @@ public record CreateTicketRequest(
      * Constructor compacto para validaciones adicionales.
      */
     public CreateTicketRequest {
-        if (nationalId != null) {
+        if (nationalId != null && !nationalId.trim().isEmpty()) {
             nationalId = nationalId.trim().replaceAll("[^0-9]", "");
         }
-        if (queueType != null) {
-            queueType = queueType.trim().toUpperCase();
+        if (queueType != null && !queueType.trim().isEmpty()) {
+            queueType = queueType.trim().toUpperCase(java.util.Locale.ROOT);
+            // Validate queue type
+            if (!isValidQueueType(queueType)) {
+                throw new IllegalArgumentException("Invalid queue type: " + queueType + ". Valid types are: GENERAL, VIP, PRIORITY");
+            }
         }
+    }
+    
+    private static boolean isValidQueueType(String queueType) {
+        return "GENERAL".equals(queueType) || "VIP".equals(queueType) || "PRIORITY".equals(queueType);
     }
 }

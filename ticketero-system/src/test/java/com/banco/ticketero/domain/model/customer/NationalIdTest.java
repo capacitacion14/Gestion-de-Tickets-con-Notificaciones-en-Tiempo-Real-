@@ -62,7 +62,7 @@ class NationalIdTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1234567", "123456789012345678901", "", "   "})
+    @ValueSource(strings = {"1234567", "123456789012345678901"})
     @DisplayName("Should reject invalid length national IDs")
     void shouldRejectInvalidLengthNationalIds(String invalidId) {
         // When & Then
@@ -84,6 +84,22 @@ class NationalIdTest {
         );
         
         assertEquals("NationalId cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should reject empty national IDs")
+    void shouldRejectEmptyNationalIds() {
+        // When & Then
+        assertThrows(IllegalArgumentException.class, () -> NationalId.of(""));
+        assertThrows(IllegalArgumentException.class, () -> NationalId.of("   "));
+    }
+    
+    @Test
+    @DisplayName("Should reject non-numeric national IDs")
+    void shouldRejectNonNumericNationalIds() {
+        // When & Then
+        assertThrows(IllegalArgumentException.class, () -> NationalId.of("abc"));
+        assertThrows(IllegalArgumentException.class, () -> NationalId.of("!@#$%"));
     }
 
     @Test

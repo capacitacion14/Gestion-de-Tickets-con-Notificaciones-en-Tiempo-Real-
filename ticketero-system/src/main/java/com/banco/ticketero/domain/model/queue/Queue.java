@@ -150,6 +150,20 @@ public class Queue {
         return queueType.isHighPriority();
     }
     
+    /**
+     * Getter para isActive (compatibilidad con mappers).
+     */
+    public Boolean getIsActive() {
+        return isActive;
+    }
+    
+    /**
+     * Método isActive() para compatibilidad.
+     */
+    public boolean isActive() {
+        return isActive;
+    }
+    
     private static void validateCapacity(int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("Max capacity must be positive");

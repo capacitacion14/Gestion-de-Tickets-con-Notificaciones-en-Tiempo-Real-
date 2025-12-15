@@ -96,4 +96,9 @@ public interface TicketRepository {
      * Elimina un ticket por su ID.
      */
     void deleteById(TicketId ticketId);
+    
+    /**
+     * Obtiene todos los tickets.
+     */
+    List<Ticket> findAll();
 }
