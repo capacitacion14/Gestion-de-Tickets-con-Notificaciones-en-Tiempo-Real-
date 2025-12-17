@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: ticketero-system-test
+
+logging:
+  level:
+    com.banco.ticketero: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN

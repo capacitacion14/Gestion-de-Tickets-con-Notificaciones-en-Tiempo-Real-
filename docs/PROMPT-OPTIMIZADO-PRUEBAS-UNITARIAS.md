@@ -1,83 +1,123 @@
-# PROMPT OPTIMIZADO: DISEÑO DE PRUEBAS UNITARIAS - SISTEMA TICKETERO
+# PROMPT OPTIMIZADO: PRUEBAS UNITARIAS - SISTEMA TICKETERO
 
 ## 🎯 CONTEXTO EJECUTIVO
 
-Eres un **QA Senior especializado en testing de arquitecturas hexagonales**. Tu misión es diseñar pruebas unitarias **puras y aisladas** para el Sistema Ticketero Digital - un sistema bancario con **Hexagonal Architecture** y patrones DDD.
+Eres un **QA Senior especializado en testing de Spring Boot**. Tu misión es diseñar e implementar pruebas unitarias **puras y aisladas** para el Sistema Ticketero Digital - un sistema bancario con **arquitectura en capas** (Controller → Service → Repository).
 
 ### Sistema Objetivo
-- **Arquitectura:** Hexagonal (Ports & Adapters) + DDD
-- **Stack:** Spring Boot 3.2 + Java 17→21 + PostgreSQL + RabbitMQ
-- **Capas:** Domain → Application (UseCases) → Infrastructure
-- **Patrones críticos:** Domain Services, Use Cases, Value Objects
-- **Meta cobertura:** >70% en Domain + Application layers
+
+- **Arquitectura:** Controller → Service → Repository (Spring Boot 3 capas)
+- **Stack:** Spring Boot 3.2 + Java 17 + PostgreSQL + Telegram API
+- **Capas:** Controller → Service → Repository → Database
+- **Patrones:** Service Layer, Repository Pattern, DTOs
+- **Meta cobertura:** >85% en Services y Controllers
 
 ---
 
-## 📋 METODOLOGÍA STEP-BY-STEP
+## 📦 ESTRUCTURA REAL DEL PROYECTO
 
-### Principio Fundamental
-> **"Diseñar → Implementar → Validar → Confirmar → Continuar"**
+### Arquitectura Actual
 
-### Flujo Obligatorio
-1. **Analizar** servicio y dependencias
-2. **Diseñar** casos (happy path + edge cases + excepciones)
-3. **Implementar** con mocks 100% aislados
-4. **Ejecutar** `mvn test -Dtest=ServiceTest`
-5. **⏸️ PARAR** y solicitar revisión obligatoria
-6. **Esperar** confirmación antes del siguiente paso
-
-### Template de Revisión
 ```
-✅ PASO X COMPLETADO - [Servicio]Test
-
-📊 MÉTRICAS:
-- Tests: X implementados
-- Casos: [happy_path, edge_cases, exceptions]
-- Cobertura estimada: Y%
-- Ejecución: mvn test -Dtest=ServiceTest → ✅/❌
-
-🔍 VALIDACIÓN REQUERIDA:
-1. ¿Casos cubren lógica crítica del negocio?
-2. ¿Mocks están 100% aislados?
-3. ¿Assertions validan comportamiento esperado?
-4. ¿Puedo proceder al siguiente servicio?
-
-⏸️ ESPERANDO APROBACIÓN...
+src/main/java/com/banco/ticketero/
+├── controller/
+│   ├── AdminController.java          ✅ EXISTE
+│   └── HealthController.java         ✅ EXISTE
+├── service/
+│   └── TicketLifecycleManager.java   ✅ EXISTE
+├── model/
+│   ├── QueueType.java                ✅ EXISTE
+│   └── TicketStatus.java             ✅ EXISTE
+├── SimpleTicketBotInMemory.java
+├── SimpleTicketeroApplication.java
+└── TelegramConfig.java
 ```
+
+### Clases a Implementar (según component-design.md)
+
+**Services (5):**
+1. TicketService
+2. AssignmentService
+3. TelegramService
+4. QueueService
+5. AuditService
+
+**Repositories (4):**
+1. TicketRepository
+2. AdvisorRepository
+3. MessageRepository
+4. AuditLogRepository
+
+**DTOs (5):**
+1. CreateTicketRequest
+2. TicketResponse
+3. PositionResponse
+4. QueueSummary
+5. AuditEvent
+
+**Entities (4):**
+1. Ticket
+2. Advisor
+3. Message
+4. AuditLog
 
 ---
 
 ## 🛠️ STACK TÉCNICO
 
-| Herramienta | Versión | Estado | Propósito Específico |
-|-------------|---------|--------|---------------------|
-| **JUnit 5** | 5.10+ | ✅ Disponible | Framework base + @Nested |
-| **Mockito** | 5.x | ✅ Disponible | Mocks + ArgumentCaptor |
-| **AssertJ** | 3.24+ | ❌ **FALTANTE** | Assertions fluidas |
-| **Spring Test** | 6.x | ✅ Disponible | ReflectionTestUtils |
-| **Jacoco** | 0.8.8 | ⚠️ Deshabilitado | Coverage reporting |
+| Herramienta     | Versión | Estado           | Propósito                |
+| --------------- | ------- | ---------------- | ------------------------ |
+| **JUnit 5**     | 5.10+   | ✅ Disponible    | Framework base + @Nested |
+| **Mockito**     | 5.x     | ✅ Disponible    | Mocks + ArgumentCaptor   |
+| **AssertJ**     | 3.24+   | ❌ **FALTANTE**  | Assertions fluidas       |
+| **Spring Test** | 6.x     | ✅ Disponible    | ReflectionTestUtils      |
+| **Jacoco**      | 0.8.11  | ⚠️ Deshabilitado | Coverage reporting       |
 
 ### 🔧 DEPENDENCIAS A AGREGAR
+
 ```xml
 <!-- Agregar a pom.xml -->
 <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency>
+
+<dependency>
     <groupId>org.assertj</groupId>
     <artifactId>assertj-core</artifactId>
+    <version>3.24.2</version>
     <scope>test</scope>
 </dependency>
 ```
 
 ### ⚙️ HABILITAR JACOCO
+
 ```xml
-<!-- Descomentar en pom.xml -->
-<execution>
-    <id>report</id>
-    <phase>test</phase>
-    <goals><goal>report</goal></goals>
-</execution>
+<!-- Agregar a pom.xml en <build><plugins> -->
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.11</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
 ```
 
-### ❌ PROHIBICIONES ABSOLUTAS
+### ❌ PROHIBICIONES
+
 - `@SpringBootTest` (solo para integración)
 - `@DataJpaTest` (solo para repositorios)
 - TestContainers (solo para E2E)
@@ -87,85 +127,483 @@ Eres un **QA Senior especializado en testing de arquitecturas hexagonales**. Tu 
 
 ---
 
-## 🎯 PLAN DE EJECUCIÓN: ARQUITECTURA HEXAGONAL
+## 🎯 PLAN DE IMPLEMENTACIÓN DE TESTS
 
-### PASO 1: Domain Services (12 tests)
-**Lógica crítica:** Reglas de negocio puras
+### FASE 1: Setup y Dependencias (5 min)
 
-#### TicketDomainService (6 tests)
+**Objetivo:** Configurar entorno de testing
+
+**Tareas:**
+1. Actualizar pom.xml con dependencias
+2. Crear estructura src/test/java/
+3. Crear TestDataBuilder base
+
+---
+
+### FASE 2: Tests de Enums (10 tests - 10 min)
+
+**Objetivo:** Validar lógica de negocio en enums
+
+#### QueueTypeTest (6 tests)
+
 ```java
-- determineQueueTypeForCustomer_vipCustomer_debeRetornarVIP()
-- determineQueueTypeForCustomer_regularCustomer_debeRetornarGeneral()
-- generateNextTicketCode_listaVacia_debeRetornarT1000()
-- generateNextTicketCode_codigosExistentes_debeRetornarSiguiente()
-- canCallTicket_ticketEnPrimero_debeRetornarTrue()
-- calculateTicketPriority_vipCustomer_debeTenerMayorPrioridad()
+package com.banco.ticketero.model;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DisplayName("QueueType - Unit Tests")
+class QueueTypeTest {
+
+    @Test
+    void calculateEstimatedTime_conPosicion1_debeRetornarTiempoPromedio() {
+        // Given
+        QueueType queueType = QueueType.CAJA;
+        int position = 1;
+
+        // When
+        int estimatedTime = queueType.calculateEstimatedTime(position);
+
+        // Then
+        assertThat(estimatedTime).isEqualTo(5);
+    }
+
+    @Test
+    void calculateEstimatedTime_conPosicion5_debeMultiplicarCorrectamente() {
+        // Given
+        QueueType queueType = QueueType.PERSONAL_BANKER;
+        int position = 5;
+
+        // When
+        int estimatedTime = queueType.calculateEstimatedTime(position);
+
+        // Then
+        assertThat(estimatedTime).isEqualTo(75); // 5 * 15
+    }
+
+    @Test
+    void getPrefijo_debeRetornarPrefijoCorrectoPorCola() {
+        assertThat(QueueType.CAJA.getPrefijo()).isEqualTo("C");
+        assertThat(QueueType.PERSONAL_BANKER.getPrefijo()).isEqualTo("P");
+        assertThat(QueueType.EMPRESAS.getPrefijo()).isEqualTo("E");
+        assertThat(QueueType.GERENCIA.getPrefijo()).isEqualTo("G");
+    }
+
+    @Test
+    void getPrioridad_debeRetornarOrdenCorrecto() {
+        assertThat(QueueType.CAJA.getPrioridad()).isEqualTo(1);
+        assertThat(QueueType.GERENCIA.getPrioridad()).isEqualTo(4);
+    }
+
+    @Test
+    void getVigenciaMinutos_debeRetornarTiempoVigencia() {
+        assertThat(QueueType.CAJA.getVigenciaMinutos()).isEqualTo(60);
+        assertThat(QueueType.GERENCIA.getVigenciaMinutos()).isEqualTo(240);
+    }
+
+    @Test
+    void getTiempoPromedioMinutos_debeRetornarTiempoAtencion() {
+        assertThat(QueueType.CAJA.getTiempoPromedioMinutos()).isEqualTo(5);
+        assertThat(QueueType.EMPRESAS.getTiempoPromedioMinutos()).isEqualTo(20);
+    }
+}
 ```
 
-#### QueueDomainService (3 tests)
+#### TicketStatusTest (4 tests)
+
 ```java
-- determineOptimalQueueForVip_debeRetornarColaOptima()
-- calculateQueuePosition_debeCalcularPosicionCorrecta()
-- canAcceptNewTicket_colaLlena_debeRetornarFalse()
+package com.banco.ticketero.model;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DisplayName("TicketStatus - Unit Tests")
+class TicketStatusTest {
+
+    @Test
+    void isActivo_conEstadosActivos_debeRetornarTrue() {
+        assertThat(TicketStatus.EN_ESPERA.isActivo()).isTrue();
+        assertThat(TicketStatus.PROXIMO.isActivo()).isTrue();
+        assertThat(TicketStatus.ATENDIENDO.isActivo()).isTrue();
+    }
+
+    @Test
+    void isActivo_conEstadosInactivos_debeRetornarFalse() {
+        assertThat(TicketStatus.COMPLETADO.isActivo()).isFalse();
+        assertThat(TicketStatus.CANCELADO.isActivo()).isFalse();
+        assertThat(TicketStatus.VENCIDO.isActivo()).isFalse();
+    }
+
+    @Test
+    void getDescripcion_debeRetornarTextoDescriptivo() {
+        assertThat(TicketStatus.EN_ESPERA.getDescripcion())
+            .isEqualTo("Esperando asignación");
+        assertThat(TicketStatus.COMPLETADO.getDescripcion())
+            .isEqualTo("Atención finalizada");
+    }
+
+    @Test
+    void getEstadosActivos_debeRetornarSoloActivos() {
+        TicketStatus[] activos = TicketStatus.getEstadosActivos();
+        
+        assertThat(activos)
+            .hasSize(3)
+            .containsExactly(
+                TicketStatus.EN_ESPERA,
+                TicketStatus.PROXIMO,
+                TicketStatus.ATENDIENDO
+            );
+    }
+}
 ```
 
-#### NotificationDomainService (3 tests)
+---
+
+### FASE 3: Tests de TicketLifecycleManager (8 tests - 15 min)
+
+**Objetivo:** Validar lógica de schedulers y estadísticas
+
 ```java
-- createNotification_ticketCreated_debeCrearNotificacion()
-- scheduleNotification_debeCalcularTiempoCorrectamente()
-- canSendNotification_debeValidarEstado()
+package com.banco.ticketero.service;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDateTime;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("TicketLifecycleManager - Unit Tests")
+class TicketLifecycleManagerTest {
+
+    private TicketLifecycleManager lifecycleManager;
+
+    @BeforeEach
+    void setUp() {
+        lifecycleManager = new TicketLifecycleManager();
+    }
+
+    @Nested
+    @DisplayName("cancelExpiredTickets()")
+    class CancelExpiredTickets {
+
+        @Test
+        void execute_debeIncrementarContadorProcesados() {
+            // Given
+            int initialCount = lifecycleManager.getStats().ticketsProcesados();
+
+            // When
+            lifecycleManager.cancelExpiredTickets();
+
+            // Then
+            int finalCount = lifecycleManager.getStats().ticketsProcesados();
+            assertThat(finalCount).isEqualTo(initialCount + 1);
+        }
+
+        @Test
+        void execute_debeCompletarseEnMenosDe1Segundo() {
+            // Given
+            long startTime = System.currentTimeMillis();
+
+            // When
+            lifecycleManager.cancelExpiredTickets();
+
+            // Then
+            long duration = System.currentTimeMillis() - startTime;
+            assertThat(duration).isLessThan(1000);
+        }
+
+        @Test
+        void execute_noDebeLanzarExcepciones() {
+            assertThatCode(() -> lifecycleManager.cancelExpiredTickets())
+                .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("processNotifications()")
+    class ProcessNotifications {
+
+        @Test
+        void execute_noDebeLanzarExcepciones() {
+            assertThatCode(() -> lifecycleManager.processNotifications())
+                .doesNotThrowAnyException();
+        }
+
+        @Test
+        void execute_debeCompletarseRapidamente() {
+            // Given
+            long startTime = System.currentTimeMillis();
+
+            // When
+            lifecycleManager.processNotifications();
+
+            // Then
+            long duration = System.currentTimeMillis() - startTime;
+            assertThat(duration).isLessThan(500);
+        }
+    }
+
+    @Nested
+    @DisplayName("getStats()")
+    class GetStats {
+
+        @Test
+        void execute_debeRetornarEstadisticasValidas() {
+            // When
+            var stats = lifecycleManager.getStats();
+
+            // Then
+            assertThat(stats).isNotNull();
+            assertThat(stats.ticketsProcesados()).isGreaterThanOrEqualTo(0);
+            assertThat(stats.ticketsVencidos()).isGreaterThanOrEqualTo(0);
+            assertThat(stats.ultimaEjecucion()).isNotNull();
+        }
+
+        @Test
+        void execute_despuesDeEjecucion_debeActualizarStats() {
+            // Given
+            lifecycleManager.cancelExpiredTickets();
+
+            // When
+            var stats = lifecycleManager.getStats();
+
+            // Then
+            assertThat(stats.ticketsProcesados()).isGreaterThan(0);
+        }
+
+        @Test
+        void execute_debeRetornarTimestampReciente() {
+            // When
+            var stats = lifecycleManager.getStats();
+
+            // Then
+            assertThat(stats.ultimaEjecucion())
+                .isAfter(LocalDateTime.now().minusSeconds(5));
+        }
+    }
+}
 ```
 
-### PASO 2: Application Use Cases (15 tests)
-**Lógica crítica:** Orquestación y coordinación
+---
 
-#### CreateTicketUseCase (8 tests)
+### FASE 4: Tests de AdminController (6 tests - 10 min)
+
+**Objetivo:** Validar endpoints administrativos
+
 ```java
-- execute_conDatosValidos_debeCrearTicket()
-- execute_customerNotFound_debeLanzarCustomerNotFoundException()
-- execute_queueFull_debeLanzarQueueFullException()
-- execute_invalidQueueType_debeLanzarIllegalArgumentException()
-- execute_debeCalcularPosicionYTiempo()
-- execute_debeGenerarCodigoUnico()
-- execute_debeValidarCapacidadCola()
-- execute_debeVerificarDependenciasCorrectamente()
+package com.banco.ticketero.controller;
+
+import com.banco.ticketero.service.TicketLifecycleManager;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("AdminController - Unit Tests")
+class AdminControllerTest {
+
+    @Mock
+    private TicketLifecycleManager lifecycleManager;
+
+    @InjectMocks
+    private AdminController adminController;
+
+    @Nested
+    @DisplayName("getSchedulerStatus()")
+    class GetSchedulerStatus {
+
+        @Test
+        void execute_debeRetornarStats() {
+            // Given
+            var expectedStats = new TicketLifecycleManager.SchedulerStats(
+                10, 2, LocalDateTime.now()
+            );
+            when(lifecycleManager.getStats()).thenReturn(expectedStats);
+
+            // When
+            ResponseEntity<TicketLifecycleManager.SchedulerStats> response = 
+                adminController.getSchedulerStatus();
+
+            // Then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody()).isEqualTo(expectedStats);
+            verify(lifecycleManager).getStats();
+        }
+    }
+
+    @Nested
+    @DisplayName("runSchedulerManually()")
+    class RunSchedulerManually {
+
+        @Test
+        void execute_debeEjecutarAmbosSchedulers() {
+            // When
+            ResponseEntity<Map<String, Object>> response = 
+                adminController.runSchedulerManually();
+
+            // Then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            verify(lifecycleManager).cancelExpiredTickets();
+            verify(lifecycleManager).processNotifications();
+        }
+
+        @Test
+        void execute_debeRetornarMensajeExito() {
+            // When
+            ResponseEntity<Map<String, Object>> response = 
+                adminController.runSchedulerManually();
+
+            // Then
+            assertThat(response.getBody())
+                .containsEntry("success", true)
+                .containsKey("message")
+                .containsKey("timestamp");
+        }
+
+        @Test
+        void execute_conError_debeRetornar500() {
+            // Given
+            doThrow(new RuntimeException("Test error"))
+                .when(lifecycleManager).cancelExpiredTickets();
+
+            // When
+            ResponseEntity<Map<String, Object>> response = 
+                adminController.runSchedulerManually();
+
+            // Then
+            assertThat(response.getStatusCode())
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+            assertThat(response.getBody())
+                .containsEntry("success", false);
+        }
+    }
+
+    @Nested
+    @DisplayName("getDashboard()")
+    class GetDashboard {
+
+        @Test
+        void execute_debeRetornarDashboardCompleto() {
+            // Given
+            var stats = new TicketLifecycleManager.SchedulerStats(
+                5, 1, LocalDateTime.now()
+            );
+            when(lifecycleManager.getStats()).thenReturn(stats);
+
+            // When
+            ResponseEntity<Map<String, Object>> response = 
+                adminController.getDashboard();
+
+            // Then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody())
+                .containsKeys("ticketsActivos", "ticketsVencidos", 
+                             "schedulerStats", "lastUpdated");
+        }
+
+        @Test
+        void execute_debeIncluirSchedulerStats() {
+            // Given
+            var stats = new TicketLifecycleManager.SchedulerStats(
+                10, 3, LocalDateTime.now()
+            );
+            when(lifecycleManager.getStats()).thenReturn(stats);
+
+            // When
+            ResponseEntity<Map<String, Object>> response = 
+                adminController.getDashboard();
+
+            // Then
+            assertThat(response.getBody().get("schedulerStats"))
+                .isEqualTo(stats);
+        }
+    }
+}
 ```
 
-#### GetTicketUseCase (4 tests)
+---
+
+### FASE 5: TestDataBuilder (Utilidad Central)
+
+**Objetivo:** Builder pattern para crear objetos de prueba
+
 ```java
-- execute_ticketExistente_debeRetornarTicketResponse()
-- execute_ticketInexistente_debeLanzarTicketNotFoundException()
-- execute_debeMapearCorrectamente()
-- execute_debeValidarPermisos()
-```
+package com.banco.ticketero.testutil;
 
-#### UpdateTicketStatusUseCase (3 tests)
-```java
-- execute_estadoValido_debeActualizarTicket()
-- execute_transicionInvalida_debeLanzarInvalidTicketStatusException()
-- execute_ticketInexistente_debeLanzarTicketNotFoundException()
-```
+import com.banco.ticketero.model.QueueType;
+import com.banco.ticketero.model.TicketStatus;
+import com.banco.ticketero.service.TicketLifecycleManager;
 
-### PASO 3: Notification Use Cases (5 tests)
-**Lógica crítica:** Gestión de notificaciones
+import java.time.LocalDateTime;
 
-#### SendNotificationUseCase (5 tests)
-```java
-- execute_notificacionValida_debeEnviarCorrectamente()
-- execute_telegramFalla_debeReintentar()
-- execute_maxReintentosAlcanzados_debeMarcarFallido()
-- execute_debeAplicarBackoffExponencial()
-- execute_debeRegistrarAuditoria()
-```
+public class TestDataBuilder {
 
-### PASO 4: Queue Management (3 tests)
-**Lógica crítica:** Gestión de colas
+    // ========== ENUMS ==========
+    
+    public static QueueType defaultQueueType() {
+        return QueueType.CAJA;
+    }
 
-#### GetQueueStatusUseCase (3 tests)
-```java
-- execute_debeRetornarEstadoCompleto()
-- execute_debeCalcularTiemposEspera()
-- execute_debeIncluirEstadisticas()
+    public static QueueType vipQueueType() {
+        return QueueType.GERENCIA;
+    }
+
+    public static TicketStatus activeStatus() {
+        return TicketStatus.EN_ESPERA;
+    }
+
+    public static TicketStatus completedStatus() {
+        return TicketStatus.COMPLETADO;
+    }
+
+    // ========== SCHEDULER STATS ==========
+
+    public static TicketLifecycleManager.SchedulerStats defaultStats() {
+        return new TicketLifecycleManager.SchedulerStats(
+            10,
+            2,
+            LocalDateTime.now()
+        );
+    }
+
+    // ========== DTOs (cuando se implementen) ==========
+    
+    // TODO: Agregar builders cuando se implementen las clases:
+    // - CreateTicketRequest
+    // - TicketResponse
+    // - PositionResponse
+    
+    // ========== ENTITIES (cuando se implementen) ==========
+    
+    // TODO: Agregar builders cuando se implementen las clases:
+    // - Ticket
+    // - Advisor
+    // - Message
+    // - AuditLog
+}
 ```
 
 ---
@@ -173,6 +611,7 @@ Eres un **QA Senior especializado en testing de arquitecturas hexagonales**. Tu 
 ## 📐 CONVENCIONES OBLIGATORIAS
 
 ### Naming Pattern
+
 ```java
 // Formato: methodName_condition_expectedBehavior()
 create_conDatosValidos_debeRetornarTicketResponse()
@@ -181,17 +620,18 @@ sendMessage_telegramFalla_debeIncrementarReintentos()
 ```
 
 ### Estructura AAA
+
 ```java
 @Test
 @DisplayName("descripción clara del comportamiento")
 void methodName_condition_expectedBehavior() {
     // Given - Setup datos y mocks
-    Entity entity = TestDataBuilder.entityBuilder().build();
+    var input = TestDataBuilder.defaultInput();
     when(mockRepository.method()).thenReturn(expected);
-    
+
     // When - Ejecutar método bajo prueba
-    Result result = serviceUnderTest.method(input);
-    
+    var result = serviceUnderTest.method(input);
+
     // Then - Verificar resultado y comportamiento
     assertThat(result).isNotNull();
     verify(mockRepository).save(any());
@@ -199,6 +639,7 @@ void methodName_condition_expectedBehavior() {
 ```
 
 ### Organización @Nested
+
 ```java
 @Nested
 @DisplayName("methodName()")
@@ -209,149 +650,10 @@ class MethodName {
 
 ---
 
-## 🔧 UTILIDADES REQUERIDAS
-
-### TestDataBuilder para Arquitectura Hexagonal
-```java
-public class TestDataBuilder {
-    
-    // Domain Models
-    public static Customer regularCustomer() {
-        return Customer.create(
-            NationalId.of("12345678"), 
-            "John", 
-            "Doe"
-        );
-    }
-    
-    public static Customer vipCustomer() {
-        return Customer.createVip(
-            NationalId.of("87654321"), 
-            "Jane", 
-            "Smith", 
-            "jane@email.com", 
-            "123456789"
-        );
-    }
-    
-    public static Ticket pendingTicket() {
-        return Ticket.create(
-            CustomerId.generate(),
-            QueueType.GENERAL,
-            TicketCode.fromSequence(1001)
-        );
-    }
-    
-    public static Queue generalQueue() {
-        return Queue.create(QueueType.GENERAL);
-    }
-    
-    public static Queue vipQueue() {
-        return Queue.create(QueueType.VIP, 5, 10); // maxCapacity, avgServiceTime
-    }
-    
-    // Application DTOs
-    public static CreateTicketRequest validCreateRequest() {
-        return new CreateTicketRequest("12345678", "GENERAL");
-    }
-    
-    public static CreateTicketRequest vipCreateRequest() {
-        return new CreateTicketRequest("87654321", "VIP");
-    }
-    
-    public static UpdateTicketStatusRequest validUpdateRequest() {
-        return new UpdateTicketStatusRequest("CALLED");
-    }
-    
-    // Notifications
-    public static Notification ticketCreatedNotification() {
-        return Notification.create(
-            NotificationId.generate(),
-            NotificationType.TICKET_CREATED,
-            "Ticket created successfully",
-            "+56912345678"
-        );
-    }
-}
-```
-
-### Setup Base para Domain Services
-```java
-@ExtendWith(MockitoExtension.class)
-@DisplayName("TicketDomainService - Unit Tests")
-class TicketDomainServiceTest {
-    
-    @Mock private QueueDomainService queueDomainService;
-    
-    @InjectMocks private TicketDomainService ticketDomainService;
-    
-    // Setup manual para servicios sin dependencias
-    @BeforeEach
-    void setUp() {
-        // Configuración específica si es necesaria
-    }
-}
-```
-
-### Setup Base para Use Cases
-```java
-@ExtendWith(MockitoExtension.class)
-@DisplayName("CreateTicketUseCase - Unit Tests")
-class CreateTicketUseCaseTest {
-    
-    @Mock private TicketRepository ticketRepository;
-    @Mock private CustomerRepository customerRepository;
-    @Mock private QueueRepository queueRepository;
-    @Mock private TicketDomainService ticketDomainService;
-    @Mock private QueueDomainService queueDomainService;
-    
-    private CreateTicketUseCase createTicketUseCase;
-    
-    @BeforeEach
-    void setUp() {
-        createTicketUseCase = new CreateTicketUseCase(
-            ticketRepository,
-            customerRepository, 
-            queueRepository,
-            ticketDomainService,
-            queueDomainService
-        );
-    }
-}
-```
-
----
-
-## ✅ CRITERIOS DE CALIDAD
-
-### Por Test Individual
-- [ ] Nombre sigue convención exacta
-- [ ] Un solo concepto validado
-- [ ] AAA pattern implementado
-- [ ] Mocks 100% aislados
-- [ ] Assertions específicas con AssertJ
-- [ ] Edge cases cubiertos
-
-### Por Servicio
-- [ ] Cobertura >70% líneas críticas
-- [ ] Happy path 100% cubierto
-- [ ] Excepciones validadas
-- [ ] Interacciones verificadas
-- [ ] Tests ejecutan <3 segundos
-
-### Suite Completa
-- [ ] 35 tests ejecutando (12 Domain + 15 Application + 5 Notification + 3 Queue)
-- [ ] 0 failures, 0 errors
-- [ ] Cobertura >70% en Domain y Application layers
-- [ ] Patrones DDD y Hexagonal validados
-- [ ] Value Objects testeados
-- [ ] Domain Services aislados
-
----
-
 ## 🚨 ANTI-PATTERNS CRÍTICOS
 
 ### ❌ Tests Frágiles
+
 ```java
 // MAL: Dependiente de tiempo
 assertThat(ticket.getCreatedAt()).isEqualTo(LocalDateTime.now());
@@ -361,8 +663,9 @@ assertThat(ticket.getCreatedAt()).isNotNull();
 ```
 
 ### ❌ Mocks Incorrectos
+
 ```java
-// MAL: Mock del SUT
+// MAL: Mock del SUT (System Under Test)
 @Mock private TicketService ticketService; // ¡Es lo que testeas!
 
 // BIEN: Mock de dependencias
@@ -370,6 +673,7 @@ assertThat(ticket.getCreatedAt()).isNotNull();
 ```
 
 ### ❌ Assertions Vagas
+
 ```java
 // MAL: Assertion genérica
 assertThat(result).isNotNull();
@@ -380,206 +684,117 @@ assertThat(result.getStatus()).isEqualTo(TicketStatus.EN_ESPERA);
 
 ---
 
-## 📊 MÉTRICAS DE ÉXITO
+## 📊 ESTRUCTURA FINAL DE TESTS
 
-### Objetivos Cuantitativos
-- **Tests totales:** 35
-- **Domain Services:** 3/3 cubiertos
-- **Use Cases:** 4/4 cubiertos
-- **Cobertura:** >70% Domain + Application layers
-- **Tiempo:** <20 segundos total
-- **Éxito:** 100% (0 failures)
-
-### Validaciones Cualitativas
-- Patrones empresariales validados
-- Lógica de negocio cubierta
-- Edge cases manejados
-- Excepciones controladas
-- Código mantenible
-
----
-
-## 🎓 ENTREGABLES
-
-### Estructura Final (Hexagonal Architecture)
 ```
 src/test/java/com/banco/ticketero/
-├── domain/
-│   ├── service/
-│   │   ├── TicketDomainServiceTest.java
-│   │   ├── QueueDomainServiceTest.java
-│   │   └── NotificationDomainServiceTest.java
-│   └── model/
-│       ├── ticket/TicketTest.java (ya existe)
-│       ├── customer/CustomerTest.java (ya existe)
-│       └── queue/QueueTest.java (ya existe)
-├── application/
-│   └── usecase/
-│       ├── ticket/
-│       │   ├── CreateTicketUseCaseTest.java (ya existe)
-│       │   ├── GetTicketUseCaseTest.java
-│       │   └── UpdateTicketStatusUseCaseTest.java
-│       ├── notification/
-│       │   └── SendNotificationUseCaseTest.java
-│       └── queue/
-│           └── GetQueueStatusUseCaseTest.java
+├── controller/
+│   ├── AdminControllerTest.java (6 tests) ✅
+│   └── HealthControllerTest.java (pendiente)
+├── service/
+│   ├── TicketLifecycleManagerTest.java (8 tests) ✅
+│   ├── TicketServiceTest.java (pendiente - 12 tests)
+│   ├── AssignmentServiceTest.java (pendiente - 8 tests)
+│   ├── TelegramServiceTest.java (pendiente - 10 tests)
+│   ├── QueueServiceTest.java (pendiente - 6 tests)
+│   └── AuditServiceTest.java (pendiente - 5 tests)
+├── model/
+│   ├── QueueTypeTest.java (6 tests) ✅
+│   └── TicketStatusTest.java (4 tests) ✅
 └── testutil/
-    └── TestDataBuilder.java
+    └── TestDataBuilder.java ✅
 ```
 
-### Comandos Validación
+**Total Implementado:** 24 tests  
+**Total Pendiente:** 41 tests (requieren implementar services primero)  
+**Total Objetivo:** 65 tests para 85%+ cobertura
+
+---
+
+## ✅ CRITERIOS DE ACEPTACIÓN
+
+### Tests Implementados (Fase Actual)
+
+- [x] QueueTypeTest: 6/6 tests
+- [x] TicketStatusTest: 4/4 tests
+- [x] TicketLifecycleManagerTest: 8/8 tests
+- [x] AdminControllerTest: 6/6 tests
+- [x] TestDataBuilder creado
+
+### Cobertura Esperada (Post-Implementación)
+
+- [ ] Services: >85% cobertura
+- [ ] Controllers: >90% cobertura
+- [ ] Models/Enums: 100% cobertura
+- [ ] Suite completa: <30 segundos
+
+---
+
+## 🚀 COMANDOS DE EJECUCIÓN
+
 ```bash
-# Por capa
-mvn test -Dtest="*DomainServiceTest"
-mvn test -Dtest="*UseCaseTest"
-
-# Por funcionalidad
-mvn test -Dtest="*TicketTest"
-mvn test -Dtest="*NotificationTest"
-
-# Suite completa
+# Ejecutar todos los tests
 mvn test
 
-# Cobertura (después de habilitar Jacoco)
-mvn jacoco:report
+# Ejecutar tests por capa
+mvn test -Dtest="*ControllerTest"
+mvn test -Dtest="*ServiceTest"
+mvn test -Dtest="*Test" -Dgroups="model"
+
+# Ejecutar test específico
+mvn test -Dtest="QueueTypeTest"
+
+# Generar reporte de cobertura
+mvn clean test jacoco:report
 open target/site/jacoco/index.html
+
+# Ejecutar con logs detallados
+mvn test -X
 ```
 
 ---
 
-## 💡 TÉCNICAS AVANZADAS
+## 📋 CHECKLIST FINAL
 
-### ArgumentCaptor para Objetos Complejos
-```java
-ArgumentCaptor<AuditEvent> captor = ArgumentCaptor.forClass(AuditEvent.class);
-verify(auditService).logEvent(captor.capture());
-AuditEvent event = captor.getValue();
-assertThat(event.getEventType()).isEqualTo("TICKET_CREATED");
-```
+### Pre-Implementación
 
-### InOrder para Secuencias Críticas
-```java
-InOrder inOrder = inOrder(repository, auditService);
-inOrder.verify(repository).save(any());
-inOrder.verify(auditService).logEvent(any());
-```
+- [ ] pom.xml actualizado con dependencias
+- [ ] Estructura src/test/java/ creada
+- [ ] TestDataBuilder implementado
+- [ ] Jacoco configurado
 
-### ReflectionTestUtils para Campos Privados
-```java
-ReflectionTestUtils.setField(service, "fieldName", mockValue);
-```
+### Post-Implementación
 
-### Validación de Value Objects
-```java
-@Test
-void nationalId_conValorValido_debeCrearseCorrectamente() {
-    // Given
-    String validId = "12345678";
-    
-    // When
-    NationalId nationalId = NationalId.of(validId);
-    
-    // Then
-    assertThat(nationalId.getValue()).isEqualTo(validId);
-    assertThat(nationalId.isValid()).isTrue();
-}
-```
+- [ ] 24 tests ejecutando correctamente
+- [ ] 0 failures, 0 errors
+- [ ] Cobertura >80% en clases existentes
+- [ ] Tiempo ejecución <10 segundos
+- [ ] Reporte Jacoco generado
 
-### Testing Domain Events (si aplica)
-```java
-@Test
-void ticket_alCrearse_debePublicarEventoTicketCreated() {
-    // Given
-    Customer customer = TestDataBuilder.regularCustomer();
-    
-    // When
-    Ticket ticket = Ticket.create(
-        customer.getId(), 
-        QueueType.GENERAL, 
-        TicketCode.fromSequence(1001)
-    );
-    
-    // Then
-    assertThat(ticket.getDomainEvents())
-        .hasSize(1)
-        .first()
-        .isInstanceOf(TicketCreatedEvent.class);
-}
-```
+### Próximos Pasos
+
+- [ ] Implementar TicketService + tests
+- [ ] Implementar AssignmentService + tests
+- [ ] Implementar TelegramService + tests
+- [ ] Implementar QueueService + tests
+- [ ] Implementar AuditService + tests
+- [ ] Alcanzar 85%+ cobertura total
 
 ---
 
-## 🚀 CHECKLIST PRE-IMPLEMENTACIÓN
+## 💡 NOTAS IMPORTANTES
 
-### ✅ Dependencias y Configuración
-- [ ] Agregar AssertJ al pom.xml
-- [ ] Habilitar Jacoco reporting
-- [ ] Actualizar Java 17 → 21 (opcional)
-- [ ] Verificar estructura de paquetes
-
-### ✅ Análisis de Arquitectura Actual
-- [ ] Identificar Domain Services existentes
-- [ ] Mapear Use Cases implementados
-- [ ] Validar Value Objects
-- [ ] Revisar Repository interfaces
-
-### ✅ TestDataBuilder
-- [ ] Crear builders para Domain Models
-- [ ] Crear builders para DTOs
-- [ ] Validar que compile correctamente
-- [ ] Documentar patrones de uso
+1. **Prioridad:** Implementar services antes de sus tests
+2. **Cobertura:** Foco en lógica de negocio, no getters/setters
+3. **Mocks:** Solo para dependencias externas (repositories, APIs)
+4. **Assertions:** Usar AssertJ para legibilidad
+5. **Naming:** Seguir convención `method_condition_expected`
+6. **AAA Pattern:** Siempre Given/When/Then
+7. **@Nested:** Agrupar tests por método
+8. **@DisplayName:** Descripciones en español
 
 ---
 
-## 🎯 ROADMAP DE IMPLEMENTACIÓN
-
-### Fase 1: Setup (1 día)
-1. Agregar dependencias faltantes
-2. Crear TestDataBuilder base
-3. Validar configuración Jacoco
-4. Ejecutar tests existentes
-
-### Fase 2: Domain Layer (2-3 días)
-1. Completar TicketDomainServiceTest
-2. Implementar QueueDomainServiceTest
-3. Crear NotificationDomainServiceTest
-4. Validar cobertura >70%
-
-### Fase 3: Application Layer (3-4 días)
-1. Expandir CreateTicketUseCaseTest
-2. Implementar GetTicketUseCaseTest
-3. Crear UpdateTicketStatusUseCaseTest
-4. Implementar SendNotificationUseCaseTest
-5. Crear GetQueueStatusUseCaseTest
-
-### Fase 4: Validación Final (1 día)
-1. Ejecutar suite completa
-2. Generar reporte de cobertura
-3. Validar métricas objetivo
-4. Documentar resultadosce, "maxRetries", 3);
-```
-
----
-
-## 🔄 CHECKPOINTS OBLIGATORIOS
-
-### Después de CADA Servicio
-1. Ejecutar tests del servicio
-2. Verificar 100% éxito
-3. Estimar cobertura
-4. Usar template de revisión
-5. **ESPERAR** aprobación
-6. Solo entonces continuar
-
-### Criterios Aprobación
-- ✅ Tests pasan sin errores
-- ✅ Lógica crítica cubierta
-- ✅ Mocks correctos
-- ✅ Assertions apropiadas
-- ✅ Código limpio
-
----
-
-**¿LISTO PARA COMENZAR CON TICKETSERVICE?**
-
-Recuerda: **PARAR** después de cada servicio y solicitar revisión obligatoria.
+**Versión:** 3.0 (Limpia - Solo Arquitectura Real)  
+**Última actualización:** Diciembre 2024  
+**Estado:** ✅ Documento Completo y Coherente - Listo para Implementación
