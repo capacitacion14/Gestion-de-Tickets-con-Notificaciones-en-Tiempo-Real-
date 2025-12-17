@@ -3,8 +3,8 @@ server:
 
 telegram:
   bot:
-    token: ${TELEGRAM_BOT_TOKEN:}
-    username: ${TELEGRAM_BOT_USERNAME:}
+    token: ${TELEGRAM_BOT_TOKEN:7956376741:AAEEswT9TPpkYn5FSBSEpCMqrGgLA560J4w}
+    username: ${TELEGRAM_BOT_USERNAME:Ticketero14_amazonQ_Bot}
 
 management:
   endpoints:

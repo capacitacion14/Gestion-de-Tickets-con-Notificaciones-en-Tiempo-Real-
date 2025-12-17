@@ -51,17 +51,21 @@ public class SimpleTicketBotInMemory extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
-            String chatId = update.getMessage().getChatId().toString();
-            
-            log.info("📱 Mensaje recibido: {} desde chat: {}", messageText, chatId);
-            
-            if (messageText.startsWith("/")) {
-                handleCommand(messageText, chatId);
-            } else {
-                handleTicketRequest(messageText, chatId);
+        try {
+            if (update.hasMessage() && update.getMessage().hasText()) {
+                String messageText = update.getMessage().getText();
+                String chatId = update.getMessage().getChatId().toString();
+                
+                log.info("📱 Mensaje: '{}' desde chat: {}", messageText, chatId);
+                
+                if (messageText.startsWith("/")) {
+                    handleCommand(messageText, chatId);
+                } else {
+                    handleTicketRequest(messageText, chatId);
+                }
             }
+        } catch (Exception e) {
+            log.error("❌ Error procesando mensaje: {}", e.getMessage());
         }
     }
 
@@ -236,11 +240,17 @@ public class SimpleTicketBotInMemory extends TelegramLongPollingBot {
         message.setText(text);
         
         try {
-            execute(message);
-            log.info("📤 Mensaje enviado a chat: {}", chatId);
+            var result = execute(message);
+            log.info("📤 Mensaje enviado exitosamente a chat: {} - MessageId: {}", chatId, result.getMessageId());
         } catch (TelegramApiException e) {
-            log.error("❌ Error enviando mensaje a chat: {}", chatId, e);
+            log.error("❌ Error enviando mensaje a chat: {} - Error: {}", chatId, e.getMessage(), e);
         }
+    }
+    
+    // Método para debug - enviar mensaje a chat específico
+    public void sendTestMessage(String testChatId, String message) {
+        log.info("📝 Enviando mensaje de prueba a chat: {}", testChatId);
+        sendMessage(testChatId, message);
     }
 
     @Scheduled(fixedDelay = 10000) // Cada 10 segundos
