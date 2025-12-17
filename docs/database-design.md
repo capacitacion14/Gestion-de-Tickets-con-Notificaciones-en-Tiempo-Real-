@@ -20,16 +20,22 @@ CREATE TABLE ticket (
     status VARCHAR(20) NOT NULL,
     position_in_queue INTEGER,
     estimated_wait_minutes INTEGER,
+    vigencia_minutos INTEGER NOT NULL DEFAULT 120,
+    expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     assigned_advisor_id BIGINT REFERENCES advisor(id),
     assigned_module_number INTEGER,
-    completed_at TIMESTAMP
+    completed_at TIMESTAMP,
+    cancelled_at TIMESTAMP,
+    cancel_reason VARCHAR(50)
 );
 
 CREATE INDEX idx_ticket_status ON ticket(status);
 CREATE INDEX idx_ticket_queue_type ON ticket(queue_type);
 CREATE INDEX idx_ticket_national_id ON ticket(national_id);
 CREATE INDEX idx_ticket_created_at ON ticket(created_at);
+CREATE INDEX idx_ticket_expires_at ON ticket(expires_at);
+CREATE INDEX idx_ticket_status_expires ON ticket(status, expires_at);
 CREATE UNIQUE INDEX idx_ticket_numero ON ticket(numero);
 ```
 
@@ -91,6 +97,22 @@ CREATE INDEX idx_audit_event_type ON audit_log(event_type);
 
 ## 2. Queries Críticas
 
+### Configuración de Vigencia por Cola
+```sql
+CREATE TABLE queue_config (
+    queue_type VARCHAR(20) PRIMARY KEY,
+    vigencia_minutos INTEGER NOT NULL,
+    tiempo_promedio_minutos INTEGER NOT NULL,
+    prioridad INTEGER NOT NULL
+);
+
+INSERT INTO queue_config VALUES
+('CAJA', 60, 5, 1),
+('PERSONAL_BANKER', 120, 15, 2),
+('EMPRESAS', 180, 20, 3),
+('GERENCIA', 240, 30, 4);
+```
+
 ### Query 1: Calcular posición en cola
 ```sql
 SELECT COUNT(*) + 1 AS position
@@ -133,6 +155,91 @@ FROM message
 WHERE estado_envio = 'PENDIENTE'
   AND fecha_programada <= CURRENT_TIMESTAMP
 ORDER BY fecha_programada ASC;
+```
+
+### Query 5: Tickets vencidos para cancelación automática
+```sql
+SELECT codigo_referencia, numero, status, expires_at
+FROM ticket
+WHERE status IN ('EN_ESPERA', 'PROXIMO', 'ATENDIENDO')
+  AND expires_at < CURRENT_TIMESTAMP
+ORDER BY expires_at ASC;
+```
+
+### Query 6: Tickets próximos a notificaciones por tiempo
+```sql
+SELECT t.codigo_referencia, t.numero, t.estimated_wait_minutes
+FROM ticket t
+WHERE t.status IN ('EN_ESPERA', 'PROXIMO')
+  AND t.estimated_wait_minutes IN (15, 5)
+  AND NOT EXISTS (
+    SELECT 1 FROM message m 
+    WHERE m.ticket_id = t.codigo_referencia 
+      AND m.plantilla IN ('totem_faltan_15_min', 'totem_faltan_5_min')
+      AND m.estado_envio = 'ENVIADO'
+  );
+```
+
+### Query 7: Configuración de vigencia por cola
+```sql
+CREATE TABLE queue_config (
+    queue_type VARCHAR(20) PRIMARY KEY,
+    vigencia_minutos INTEGER NOT NULL,
+    tiempo_promedio_minutos INTEGER NOT NULL,
+    prioridad INTEGER NOT NULL
+);
+
+INSERT INTO queue_config VALUES
+('CAJA', 60, 5, 1),
+('PERSONAL_BANKER', 120, 15, 2),
+('EMPRESAS', 180, 20, 3),
+('GERENCIA', 240, 30, 4);
+```
+
+---
+
+## 3. Triggers y Funciones
+
+### Trigger: Calcular expires_at automáticamente
+```sql
+CREATE OR REPLACE FUNCTION calculate_expires_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    SELECT vigencia_minutos INTO NEW.vigencia_minutos
+    FROM queue_config 
+    WHERE queue_type = NEW.queue_type;
+    
+    NEW.expires_at := NEW.created_at + (NEW.vigencia_minutos || ' minutes')::INTERVAL;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_calculate_expires_at
+    BEFORE INSERT ON ticket
+    FOR EACH ROW
+    EXECUTE FUNCTION calculate_expires_at();
+```
+
+### Función: Cancelar tickets vencidos
+```sql
+CREATE OR REPLACE FUNCTION cancel_expired_tickets()
+RETURNS INTEGER AS $$
+DECLARE
+    expired_count INTEGER;
+BEGIN
+    UPDATE ticket 
+    SET status = 'VENCIDO',
+        cancelled_at = CURRENT_TIMESTAMP,
+        cancel_reason = 'EXPIRED'
+    WHERE status IN ('EN_ESPERA', 'PROXIMO', 'ATENDIENDO')
+      AND expires_at < CURRENT_TIMESTAMP;
+    
+    GET DIAGNOSTICS expired_count = ROW_COUNT;
+    
+    RETURN expired_count;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 ---

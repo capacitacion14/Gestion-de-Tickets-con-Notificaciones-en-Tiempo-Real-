@@ -40,6 +40,7 @@
 │  │ • create()      │  │ • assignNext()   │  │ • schedule()    │   │
 │  │ • findById()    │  │ • complete()     │  │ • sendPending() │   │
 │  │ • calcPosition()│  │ • cancel()       │  │ • retry()       │   │
+│  │ • checkExpiry() │  │                  │  │                 │   │
 │  └────────┬────────┘  └────────┬─────────┘  └────────┬────────┘   │
 │           │                    │                     │            │
 │  ┌─────────────────┐  ┌──────────────────┐                        │
@@ -50,6 +51,17 @@
 │  │ • getAllQueues()│  │ • logEvent()     │                        │
 │  │ • getStats()    │  │ • findByEntity() │                        │
 │  └────────┬────────┘  └────────┬─────────┘                        │
+│           │                    │                                  │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │ TicketLifecycleManager (@Component @EnableScheduling)       │  │
+│  │                                                             │  │
+│  │ @Scheduled(fixedDelay = 60000)                              │  │
+│  │ • cancelExpiredTickets() - Cada 60 segundos                 │  │
+│  │                                                             │  │
+│  │ @Scheduled(fixedDelay = 30000)                              │  │
+│  │ • processNotifications() - Cada 30 segundos                 │  │
+│  │ • recalculatePositions() - Automático                       │  │
+│  └─────────────────────────────────────────────────────────────┘  │
 │           │                    │                                  │
 └───────────┼────────────────────┼──────────────────────────────────┘
             │                    │
@@ -67,17 +79,18 @@
 │  │ • save()         │  │ • findAvailable()│  │ • findPending() │  │
 │  │ • findById()     │  │ • updateStatus() │  │ • save()        │  │
 │  │ • findByStatus() │  │                  │  │                 │  │
+│  │ • findExpired()  │  │                  │  │                 │  │
 │  └────────┬─────────┘  └────────┬─────────┘  └────────┬────────┘  │
 │           │                     │                      │           │
-│  ┌──────────────────┐                                              │
-│  │ AuditRepository  │                                              │
-│  │                  │                                              │
-│  │ @Repository      │                                              │
-│  │ extends JPA      │                                              │
-│  │                  │                                              │
-│  │ • save()         │                                              │
-│  │ • findByEntity() │                                              │
-│  └────────┬─────────┘                                              │
+│  ┌──────────────────┐  ┌──────────────────┐                      │
+│  │ AuditRepository  │  │ QueueConfigRepo  │                      │
+│  │                  │  │                  │                      │
+│  │ @Repository      │  │ @Repository      │                      │
+│  │ extends JPA      │  │ extends JPA      │                      │
+│  │                  │  │                  │                      │
+│  │ • save()         │  │ • findByType()   │                      │
+│  │ • findByEntity() │  │                  │                      │
+│  └────────┬─────────┘  └────────┬─────────┘                      │
 │           │                                                        │
 └───────────┼────────────────────────────────────────────────────────┘
             │
@@ -90,7 +103,14 @@
 │                                                                     │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌───────────┐            │
 │  │ ticket  │  │ advisor │  │ message │  │ audit_log │            │
+│  │ +expires│  │         │  │         │  │           │            │
+│  │ +vigencia│ │         │  │         │  │           │            │
 │  └─────────┘  └─────────┘  └─────────┘  └───────────┘            │
+│                                                                     │
+│  ┌─────────────┐                                                   │
+│  │queue_config │                                                   │
+│  │+vigencia_min│                                                   │
+│  └─────────────┘                                                   │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 

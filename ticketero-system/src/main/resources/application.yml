@@ -1,68 +1,39 @@
-spring:
-  application:
-    name: ticketero-system
-  
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
-  
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ticketero}
-    username: ${DB_USERNAME:ticketero}
-    password: ${DB_PASSWORD:ticketero123}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 20000
-      idle-timeout: 300000
-      max-lifetime: 1200000
-  
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        default_schema: ticketero
-    open-in-view: false
-  
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    schemas: ticketero
-    baseline-on-migrate: true
-    validate-on-migrate: true
+server:
+  port: ${SERVER_PORT:8080}
 
 telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
-    username: ${TELEGRAM_BOT_USERNAME:TicketeroBot}
-
-queue:
-  config:
-    max-capacity: 50
-    cleanup-interval: 3600000
-    notification-delay: 300000
+    username: ${TELEGRAM_BOT_USERNAME:}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
 
 logging:
   level:
     com.banco.ticketero: INFO
-    org.springframework.web: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    org.telegram: WARN
 
-server:
-  port: ${SERVER_PORT:8080}
-  servlet:
-    context-path: /api
+ticketero:
+  scheduler:
+    cancel-expired:
+      enabled: true
+      fixed-delay: 60000  # 60 segundos
+    notifications:
+      enabled: true
+      fixed-delay: 30000  # 30 segundos
+  queue-config:
+    caja:
+      vigencia-minutos: 60
+    personal-banker:
+      vigencia-minutos: 120
+    empresas:
+      vigencia-minutos: 180
+    gerencia:
+      vigencia-minutos: 240

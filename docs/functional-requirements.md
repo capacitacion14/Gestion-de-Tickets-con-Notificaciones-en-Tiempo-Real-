@@ -128,6 +128,30 @@ Un asesor puede estar en uno de estos estados:
 - BUSY: atendiendo un cliente (no recibe nuevas asignaciones)
 - OFFLINE: no disponible (almuerzo, capacitación, etc.)
 
+**RN-014: Vigencia de Tickets**  
+Todos los tickets tienen una vigencia configurable desde su creación:
+- Vigencia por defecto: 120 minutos (2 horas)
+- Vigencia configurable por tipo de cola
+- Cálculo: expiresAt = createdAt + vigenciaMinutos
+
+**RN-015: Cancelación Automática por Vencimiento**  
+Los tickets vencidos se cancelan automáticamente:
+- Verificación cada 60 segundos vía scheduler
+- Tickets con expiresAt < NOW() y status activo → VENCIDO
+- Estados activos: EN_ESPERA, PROXIMO, ATENDIENDO
+
+**RN-016: Notificaciones de Cola Progresivas**  
+El sistema envía notificaciones adicionales basadas en tiempo estimado:
+- Cuando faltan 15 minutos: "Faltan aproximadamente 15 minutos"
+- Cuando faltan 5 minutos: "Faltan aproximadamente 5 minutos, acércate"
+- Al asignar ejecutivo: "Es tu turno, módulo X"
+
+**RN-017: Recálculo Automático de Posiciones**  
+Las posiciones se recalculan automáticamente cada 30 segundos:
+- Cuando tickets cambian de estado (completado, cancelado, vencido)
+- Actualiza estimatedWaitMinutes de todos los tickets activos
+- Dispara notificaciones si cruzan umbrales (15min, 5min)
+
 ---
 
 ## 3. Enumeraciones
@@ -155,6 +179,7 @@ Estados posibles de un ticket:
 | COMPLETADO | Atención finalizada | No |
 | CANCELADO | Cancelado | No |
 | NO_ATENDIDO | Cliente no se presentó | No |
+| VENCIDO | Expirado por tiempo | No |
 
 ### 3.3 AdvisorStatus
 
@@ -175,6 +200,9 @@ Plantillas de mensajes para Telegram:
 | totem_ticket_creado | Confirmación de creación | Inmediato al crear ticket |
 | totem_proximo_turno | Pre-aviso | Cuando posición ≤ 3 |
 | totem_es_tu_turno | Turno activo | Al asignar a asesor |
+| totem_faltan_15_min | Aviso 15 minutos | Cuando tiempo estimado ≤ 15 min |
+| totem_faltan_5_min | Aviso 5 minutos | Cuando tiempo estimado ≤ 5 min |
+| totem_ticket_vencido | Ticket expirado | Al vencer por tiempo |
 
 ---
 
@@ -334,7 +362,7 @@ And el sistema NO programa mensajes de Telegram
 
 ### RF-002: Enviar Notificaciones Automáticas vía Telegram
 
-**Descripción:** El sistema debe enviar automáticamente tres tipos de mensajes vía Telegram al cliente durante el ciclo de vida del ticket: (1) Confirmación inmediata al crear el ticket con número, posición y tiempo estimado, (2) Pre-aviso cuando quedan 3 personas adelante solicitando acercarse a sucursal, (3) Turno activo al asignar a un ejecutivo indicando módulo y nombre del asesor. El sistema debe implementar reintentos automáticos con backoff exponencial para garantizar la entrega de mensajes.
+**Descripción:** El sistema debe enviar automáticamente seis tipos de mensajes vía Telegram al cliente durante el ciclo de vida del ticket: (1) Confirmación inmediata al crear el ticket, (2) Aviso cuando faltan 15 minutos, (3) Aviso cuando faltan 5 minutos, (4) Pre-aviso cuando quedan 3 personas adelante, (5) Turno activo al asignar ejecutivo, (6) Notificación de vencimiento. El sistema debe implementar reintentos automáticos con backoff exponencial para garantizar la entrega de mensajes.
 
 **Prioridad:** Alta
 
@@ -365,11 +393,31 @@ And el sistema NO programa mensajes de Telegram
 Tu número de turno: <b>{numero}</b>
 Posición en cola: <b>#{posicion}</b>
 Tiempo estimado: <b>{tiempo} minutos</b>
+Vence en: <b>{vigencia} minutos</b>
 
 Te notificaremos cuando estés próximo.
 ```
 
-**2. totem_proximo_turno:**
+**2. totem_faltan_15_min:**
+```
+⏰ <b>Faltan aproximadamente 15 minutos</b>
+
+Turno: <b>{numero}</b>
+Posición: <b>#{posicion}</b>
+
+Prepárate para acercarte a la sucursal.
+```
+
+**3. totem_faltan_5_min:**
+```
+🚶 <b>Faltan aproximadamente 5 minutos</b>
+
+Turno: <b>{numero}</b>
+
+Por favor, acércate a la sucursal ahora.
+```
+
+**4. totem_proximo_turno:**
 ```
 ⏰ <b>¡Pronto será tu turno!</b>
 
@@ -379,12 +427,21 @@ Faltan aproximadamente 3 turnos.
 Por favor, acércate a la sucursal.
 ```
 
-**3. totem_es_tu_turno:**
+**5. totem_es_tu_turno:**
 ```
 🔔 <b>¡ES TU TURNO {numero}!</b>
 
 Dirígete al módulo: <b>{modulo}</b>
 Asesor: <b>{nombreAsesor}</b>
+```
+
+**6. totem_ticket_vencido:**
+```
+⏰ <b>Ticket Vencido</b>
+
+Tu ticket <b>{numero}</b> ha expirado.
+
+Puedes crear un nuevo ticket si aún necesitas atención.
 ```
 
 **Reglas de Negocio Aplicables:**
@@ -1389,6 +1446,216 @@ And los eventos están ordenados por timestamp ascendente
 
 ---
 
+### RF-009: Gestionar Vigencia de Tickets
+
+**Descripción:** El sistema debe gestionar automáticamente la vigencia de los tickets, asignando un tiempo de expiración configurable desde su creación. Los tickets deben incluir información de vencimiento y el sistema debe calcular automáticamente cuándo expiran basado en configuraciones por tipo de cola.
+
+**Prioridad:** Alta
+
+**Actor Principal:** Sistema (automático)
+
+**Precondiciones:**
+- Configuración de vigencia por tipo de cola
+- Sistema de tiempo sincronizado
+
+**Modelo de Datos (Campos Adicionales en Ticket):**
+
+- vigenciaMinutos: Integer, minutos de vigencia configurados
+- expiresAt: Timestamp, fecha/hora de expiración calculada
+- isExpired: Boolean calculado (expiresAt < NOW())
+
+**Configuración de Vigencia por Cola:**
+
+| QueueType | Vigencia Default | Razón |
+|-----------|------------------|-------|
+| CAJA | 60 minutos | Transacciones rápidas |
+| PERSONAL_BANKER | 120 minutos | Consultas complejas |
+| EMPRESAS | 180 minutos | Procesos corporativos |
+| GERENCIA | 240 minutos | Casos especiales |
+
+**Reglas de Negocio Aplicables:**
+- RN-014: Vigencia de tickets configurable
+- RN-015: Cancelación automática por vencimiento
+
+**Criterios de Aceptación (Gherkin):**
+
+**Escenario 1: Cálculo automático de expiración al crear ticket**
+
+```gherkin
+Given la configuración de vigencia para CAJA es 60 minutos
+When un cliente crea un ticket para CAJA a las 10:00:00
+Then el sistema calcula:
+  | Campo           | Valor                |
+  | vigenciaMinutos | 60                   |
+  | expiresAt       | 2025-12-15 11:00:00  |
+  | isExpired       | false                |
+And el mensaje de confirmación incluye: "Vence en: 60 minutos"
+```
+
+**Escenario 2: Diferentes vigencias por tipo de cola**
+
+```gherkin
+Given las configuraciones de vigencia:
+  | QueueType       | Vigencia |
+  | CAJA            | 60 min   |
+  | PERSONAL_BANKER | 120 min  |
+  | EMPRESAS        | 180 min  |
+  | GERENCIA        | 240 min  |
+When se crean tickets a las 10:00:00
+Then las expiraciones son:
+  | QueueType       | ExpiresAt   |
+  | CAJA            | 11:00:00    |
+  | PERSONAL_BANKER | 12:00:00    |
+  | EMPRESAS        | 13:00:00    |
+  | GERENCIA        | 14:00:00    |
+```
+
+**Escenario 3: Consulta de ticket con información de vigencia**
+
+```gherkin
+Given un ticket creado a las 10:00:00 con vigencia 120 minutos
+When el cliente consulta GET /api/tickets/{uuid} a las 10:30:00
+Then el sistema retorna:
+  {
+    "numero": "P05",
+    "vigenciaMinutos": 120,
+    "expiresAt": "2025-12-15T12:00:00Z",
+    "minutosRestantes": 90,
+    "isExpired": false
+  }
+```
+
+**Postcondiciones:**
+- Ticket creado con vigencia calculada
+- Información de expiración disponible en consultas
+- Base para proceso de cancelación automática
+
+**Endpoints HTTP:**
+- Integrado en endpoints existentes de tickets
+
+---
+
+### RF-010: Cancelación Automática de Tickets Vencidos
+
+**Descripción:** El sistema debe ejecutar automáticamente un proceso scheduler que identifique y cancele tickets vencidos, cambiando su estado a VENCIDO y enviando notificación al cliente. El proceso debe ejecutarse cada 60 segundos y procesar todos los tickets activos que hayan superado su tiempo de vigencia.
+
+**Prioridad:** Crítica
+
+**Actor Principal:** Sistema (scheduler automático)
+
+**Precondiciones:**
+- Tickets con vigencia configurada (RF-009)
+- Scheduler habilitado
+- Sistema de notificaciones operativo
+
+**Algoritmo de Cancelación:**
+
+```
+1. Ejecutar cada 60 segundos
+2. Query: SELECT tickets WHERE status IN ('EN_ESPERA', 'PROXIMO', 'ATENDIENDO') 
+                            AND expiresAt < NOW()
+3. Para cada ticket vencido:
+   a. Cambiar status = 'VENCIDO'
+   b. Programar mensaje totem_ticket_vencido
+   c. Registrar evento de auditoría
+   d. Recalcular posiciones de cola
+4. Actualizar métricas de dashboard
+```
+
+**Reglas de Negocio Aplicables:**
+- RN-015: Cancelación automática por vencimiento
+- RN-017: Recálculo automático de posiciones
+
+**Criterios de Aceptación (Gherkin):**
+
+**Escenario 1: Cancelación automática de ticket vencido**
+
+```gherkin
+Given un ticket existe:
+  | numero | status    | expiresAt           | createdAt           |
+  | C05    | EN_ESPERA | 2025-12-15 11:00:00 | 2025-12-15 10:00:00 |
+And la hora actual es 2025-12-15 11:01:00
+When el scheduler ejecuta el proceso de cancelación
+Then el ticket se actualiza:
+  | status  | cancelledAt         | cancelReason |
+  | VENCIDO | 2025-12-15 11:01:00 | EXPIRED      |
+And el sistema programa mensaje totem_ticket_vencido
+And el sistema registra evento de auditoría: "TICKET_VENCIDO"
+```
+
+**Escenario 2: Múltiples tickets vencidos procesados en lote**
+
+```gherkin
+Given existen tickets vencidos:
+  | numero | status    | expiresAt           |
+  | C01    | EN_ESPERA | 2025-12-15 10:30:00 |
+  | P02    | PROXIMO   | 2025-12-15 10:45:00 |
+  | E03    | EN_ESPERA | 2025-12-15 10:50:00 |
+And la hora actual es 2025-12-15 11:00:00
+When el scheduler ejecuta el proceso
+Then todos los tickets cambian a status VENCIDO
+And se programan 3 mensajes de notificación
+And se registran 3 eventos de auditoría
+```
+
+**Escenario 3: Recálculo de posiciones después de cancelaciones**
+
+```gherkin
+Given la cola CAJA tiene tickets:
+  | numero | status    | positionInQueue | expiresAt           |
+  | C01    | EN_ESPERA | 1               | 2025-12-15 10:30:00 |
+  | C02    | EN_ESPERA | 2               | 2025-12-15 12:00:00 |
+  | C03    | EN_ESPERA | 3               | 2025-12-15 12:00:00 |
+And la hora actual es 2025-12-15 11:00:00
+When el scheduler cancela C01 por vencimiento
+Then las posiciones se recalculan:
+  | numero | positionInQueue | estimatedWaitMinutes |
+  | C02    | 1               | 5                    |
+  | C03    | 2               | 10                   |
+```
+
+**Escenario 4: Ticket en ATENDIENDO no se cancela aunque esté vencido**
+
+```gherkin
+Given un ticket está:
+  | numero | status      | expiresAt           | assignedAdvisor |
+  | P05    | ATENDIENDO  | 2025-12-15 10:30:00 | María González  |
+And la hora actual es 2025-12-15 11:00:00
+When el scheduler ejecuta el proceso
+Then el ticket NO se cancela
+And permanece en status ATENDIENDO
+And se registra evento: "TICKET_VENCIDO_EN_ATENCION"
+```
+
+**Escenario 5: Configuración del scheduler**
+
+```gherkin
+Given el scheduler está configurado para ejecutar cada 60 segundos
+When transcurren 60 segundos desde la última ejecución
+Then el sistema ejecuta automáticamente el proceso de cancelación
+And registra métricas de ejecución:
+  {
+    "ticketsProcesados": 150,
+    "ticketsVencidos": 3,
+    "tiempoEjecucion": "245ms",
+    "ultimaEjecucion": "2025-12-15T11:01:00Z"
+  }
+```
+
+**Postcondiciones:**
+- Tickets vencidos cancelados automáticamente
+- Notificaciones enviadas a clientes
+- Posiciones de cola recalculadas
+- Eventos de auditoría registrados
+- Métricas actualizadas en dashboard
+
+**Endpoints HTTP:**
+- `GET /api/admin/scheduler/status` - Estado del scheduler
+- `POST /api/admin/scheduler/run` - Ejecutar manualmente (testing)
+- `GET /api/admin/tickets/expired` - Consultar tickets vencidos
+
+---
+
 ## 5. Matrices de Trazabilidad
 
 ### 5.1 Matriz RF → Beneficio de Negocio
@@ -1403,6 +1670,8 @@ And los eventos están ordenados por timestamp ascendente
 | RF-006 | Consultar Estado | Transparencia para cliente | NPS 45 → 65 puntos |
 | RF-007 | Panel de Monitoreo | Supervisión operacional | Detección colas críticas < 1min |
 | RF-008 | Auditoría | Trazabilidad completa | 100% eventos registrados |
+| RF-009 | Vigencia de Tickets | Control de tiempo de vida | Tickets con vigencia definida |
+| RF-010 | Cancelación Automática | Limpieza automática de cola | 0% tickets vencidos activos |
 
 ### 5.2 Matriz RF → Endpoints HTTP
 
@@ -1425,8 +1694,12 @@ And los eventos están ordenados por timestamp ascendente
 | RF-007 | GET | /api/admin/advisors/stats | Estadísticas ejecutivos |
 | RF-007 | PUT | /api/admin/advisors/{id}/status | Cambiar estado ejecutivo |
 | RF-008 | GET | /api/admin/audit | Consultar auditoría |
+| RF-009 | - | - | Integrado en endpoints existentes |
+| RF-010 | GET | /api/admin/scheduler/status | Estado del scheduler |
+| RF-010 | POST | /api/admin/scheduler/run | Ejecutar manualmente |
+| RF-010 | GET | /api/admin/tickets/expired | Consultar tickets vencidos |
 
-**Total de Endpoints: 16**
+**Total de Endpoints: 19**
 
 ### 5.3 Matriz RF → Reglas de Negocio
 
@@ -1440,6 +1713,8 @@ And los eventos están ordenados por timestamp ascendente
 | RF-006 | RN-009, RN-010 |
 | RF-007 | RN-011 |
 | RF-008 | RN-011 |
+| RF-009 | RN-014, RN-015 |
+| RF-010 | RN-015, RN-016, RN-017 |
 
 ### 5.4 Matriz de Dependencias entre RFs
 
@@ -1451,6 +1726,8 @@ And los eventos están ordenados por timestamp ascendente
 | RF-006 | RF-001 | Consulta requiere ticket existente |
 | RF-007 | RF-001, RF-004, RF-005 | Dashboard requiere datos de tickets, asignaciones y colas |
 | RF-008 | Todos | Auditoría registra eventos de todos los RFs |
+| RF-009 | RF-001 | Vigencia se calcula al crear ticket |
+| RF-010 | RF-009, RF-002 | Cancelación requiere vigencia y envía notificaciones |
 
 ---
 
@@ -1468,10 +1745,14 @@ And los eventos están ordenados por timestamp ascendente
 - status: Enum
 - positionInQueue: Integer
 - estimatedWaitMinutes: Integer
+- vigenciaMinutos: Integer
+- expiresAt: Timestamp
 - createdAt: Timestamp
 - assignedAdvisor: FK a Advisor (nullable)
 - assignedModuleNumber: Integer (nullable)
 - completedAt: Timestamp (nullable)
+- cancelledAt: Timestamp (nullable)
+- cancelReason: String (nullable)
 
 **Advisor**
 - id: BIGSERIAL (PK)
@@ -1508,11 +1789,11 @@ And los eventos están ordenados por timestamp ascendente
 
 **QueueType:** CAJA, PERSONAL_BANKER, EMPRESAS, GERENCIA
 
-**TicketStatus:** EN_ESPERA, PROXIMO, ATENDIENDO, COMPLETADO, CANCELADO, NO_ATENDIDO
+**TicketStatus:** EN_ESPERA, PROXIMO, ATENDIENDO, COMPLETADO, CANCELADO, NO_ATENDIDO, VENCIDO
 
 **AdvisorStatus:** AVAILABLE, BUSY, OFFLINE
 
-**MessageTemplate:** totem_ticket_creado, totem_proximo_turno, totem_es_tu_turno
+**MessageTemplate:** totem_ticket_creado, totem_proximo_turno, totem_es_tu_turno, totem_faltan_15_min, totem_faltan_5_min, totem_ticket_vencido
 
 **MessageStatus:** PENDIENTE, ENVIADO, FALLIDO
 
@@ -1659,12 +1940,12 @@ And los eventos están ordenados por timestamp ascendente
 
 ### Estadísticas del Documento
 
-- **Requerimientos Funcionales:** 8
-- **Escenarios Gherkin:** 45+
-- **Reglas de Negocio:** 13
-- **Endpoints HTTP:** 16
+- **Requerimientos Funcionales:** 10
+- **Escenarios Gherkin:** 60+
+- **Reglas de Negocio:** 17
+- **Endpoints HTTP:** 19
 - **Entidades de Datos:** 4
-- **Enumeraciones:** 5
+- **Enumeraciones:** 6
 - **Casos de Uso:** 3
 
 ### Cobertura de Beneficios
