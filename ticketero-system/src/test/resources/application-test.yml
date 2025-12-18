@@ -1,9 +1,22 @@
 spring:
-  application:
-    name: ticketero-system-test
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  flyway:
+    enabled: false
+
+telegram:
+  bot:
+    token: test-token
+    api-url: http://localhost:8080/mock
 
 logging:
   level:
     com.banco.ticketero: DEBUG
-    org.springframework: WARN
-    org.hibernate: WARN
+    org.springframework.web.client: DEBUG

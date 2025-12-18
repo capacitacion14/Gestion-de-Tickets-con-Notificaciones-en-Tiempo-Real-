@@ -1,0 +1,102 @@
+spring:
+  profiles:
+    active: test
+  
+  # Database configuration for non-functional tests
+  datasource:
+    url: jdbc:h2:mem:nonfunctional_testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+  
+  # RabbitMQ test configuration
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+
+# Logging configuration for performance monitoring
+logging:
+  level:
+    com.banco.ticketero: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
+    org.testcontainers: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      simple:
+        enabled: true
+
+# Application specific configuration
+app:
+  telegram:
+    bot:
+      token: "test-token"
+      webhook-url: "http://localhost:8080/webhook"
+  
+  # Performance test configuration
+  performance:
+    max-concurrent-users: 100
+    max-throughput-per-minute: 50
+    max-response-time-ms: 2000
+  
+  # Security test configuration  
+  security:
+    rate-limit:
+      requests-per-minute: 60
+    input-validation:
+      max-description-length: 1000
+      max-national-id-length: 20
+
+# Test-specific properties
+test:
+  containers:
+    postgresql:
+      enabled: false
+    rabbitmq:
+      enabled: false
+  
+  performance:
+    enabled: true
+    load-test-duration-minutes: 1
+    concurrent-users: 10
+  
+  security:
+    enabled: true
+    sql-injection-tests: true
+    xss-tests: true
+    rate-limiting-tests: true
+  
+  usability:
+    enabled: true
+    response-time-threshold-ms: 200
+    error-message-tests: true
+  
+  compatibility:
+    enabled: true
+    cross-browser-tests: true
+    mobile-tests: true
+    api-versioning-tests: true
