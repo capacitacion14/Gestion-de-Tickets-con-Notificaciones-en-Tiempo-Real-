@@ -22,7 +22,7 @@ public class TicketProcessingScheduler {
 
     private final TicketRepository ticketRepository;
     private final AdvisorRepository advisorRepository;
-    private final AssignmentService assignmentService;
+    private final com.banco.ticketero.repository.OutboxMessageRepository outboxMessageRepository;
 
     @Scheduled(fixedDelay = 10000) // Cada 10 segundos
     @Transactional
@@ -45,17 +45,6 @@ public class TicketProcessingScheduler {
             
             if (eligibleTickets.isEmpty()) continue;
             
-            // Notificar "próximo turno" a los primeros 2 tickets elegibles
-            for (int i = 0; i < Math.min(2, eligibleTickets.size()); i++) {
-                Ticket ticket = eligibleTickets.get(i);
-                if (!ticket.isProximoNotified() && ticket.getTelefono() != null) {
-                    assignmentService.notifyProximoTurno(ticket);
-                    ticket.setProximoNotified(true);
-                    ticketRepository.save(ticket);
-                    log.info("🔔 Proximity notification sent for ticket {}", ticket.getNumero());
-                }
-            }
-            
             // Intentar asignar el primer ticket elegible si hay asesor disponible
             Ticket firstTicket = eligibleTickets.get(0);
             List<Advisor> availableAdvisors = advisorRepository
@@ -63,22 +52,18 @@ public class TicketProcessingScheduler {
             
             log.info("👥 Available advisors for {}: {}", queueType, availableAdvisors.size());
             
-            if (availableAdvisors.isEmpty()) {
-                log.warn("⚠️ No advisors available for queue {}", queueType);
-            }
+            // Debug: mostrar todos los advisors
+            List<Advisor> allAdvisors = advisorRepository.findAll();
+            log.info("📊 Total advisors in DB: {}", allAdvisors.size());
+            allAdvisors.forEach(advisor -> 
+                log.info("👤 Advisor: {} - Status: {} - Queues: {}", 
+                    advisor.getName(), advisor.getStatus(), advisor.getSupportedQueues())
+            );
             
-            if (!availableAdvisors.isEmpty()) {
-                if (firstTicket.getTelefono() == null) {
-                    log.warn("⚠️ Ticket {} has no phone number, skipping", firstTicket.getNumero());
-                } else {
-                    log.info("📞 Processing ticket {} with phone {}", firstTicket.getNumero(), firstTicket.getTelefono());
-                }
-            }
+            log.info("📞 Ticket {} phone: '{}'", firstTicket.getNumero(), firstTicket.getTelefono());
             
             if (!availableAdvisors.isEmpty() && firstTicket.getTelefono() != null) {
                 Advisor advisor = availableAdvisors.get(0);
-                
-                assignmentService.notifyTuTurno(firstTicket, advisor);
                 
                 firstTicket.setStatus(TicketStatus.ATENDIENDO);
                 firstTicket.setAssignedAdvisor(advisor);
@@ -92,12 +77,37 @@ public class TicketProcessingScheduler {
                 ticketRepository.save(firstTicket);
                 advisorRepository.save(advisor);
                 
+                // Programar mensaje TU_TURNO inmediatamente
+                String chatId = getChatId(firstTicket.getTelefono());
+                if (chatId != null) {
+                    com.banco.ticketero.model.entity.OutboxMessage tuTurno = com.banco.ticketero.model.entity.OutboxMessage.builder()
+                        .ticketId(firstTicket.getCodigoReferencia())
+                        .plantilla("TU_TURNO")
+                        .estadoEnvio(com.banco.ticketero.model.entity.OutboxMessage.MessageStatus.PENDING)
+                        .chatId(chatId)
+                        .fechaProgramada(LocalDateTime.now())
+                        .build();
+                    outboxMessageRepository.save(tuTurno);
+                    log.info("📩 TU_TURNO message scheduled IMMEDIATELY for ticket {}", firstTicket.getNumero());
+                }
+                
                 log.info("🎫 Ticket {} assigned to advisor {} at module {}", 
                     firstTicket.getNumero(), advisor.getName(), advisor.getModuleNumber());
             }
         }
     }
 
+    private String getChatId(String telefono) {
+        if (telefono == null || telefono.isEmpty()) return null;
+        if (telefono.startsWith("+56")) {
+            return telefono.substring(3);
+        }
+        if (telefono.matches("^\\d+$")) {
+            return telefono;
+        }
+        return null;
+    }
+    
     @Scheduled(fixedDelay = 10000) // Cada 10 segundos
     @Transactional
     public void completeProcessedTickets() {
