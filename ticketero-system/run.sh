@@ -10,11 +10,17 @@ if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
 
+# Configurar Java 21
+export JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/21.0.9/libexec/openjdk.jdk/Contents/Home
+export PATH=$JAVA_HOME/bin:$PATH
+
 # Verificar Java
 if ! command -v java &> /dev/null; then
-    echo "❌ Java no está instalado. Instala Java 17+"
+    echo "❌ Java no está instalado. Instala Java 21+"
     exit 1
 fi
+
+echo "☕ Usando Java: $(java -version 2>&1 | head -n 1)"
 
 # Verificar Maven
 if ! command -v mvn &> /dev/null; then
