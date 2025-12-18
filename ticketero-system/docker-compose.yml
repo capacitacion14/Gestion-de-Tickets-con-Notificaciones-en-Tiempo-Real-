@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: ticketero-postgres
     environment:
       POSTGRES_DB: ticketero_db
@@ -14,9 +14,61 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - ticketero-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketero_user -d ticketero_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ticketero-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ticketero_user
+      RABBITMQ_DEFAULT_PASS: ticketero_pass
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - ticketero-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ticketero-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=ticketero_db
+      - DB_USERNAME=ticketero_user
+      - DB_PASSWORD=ticketero_pass
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=ticketero_user
+      - RABBITMQ_PASSWORD=ticketero_pass
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ticketero-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  rabbitmq_data:
 
 networks:
   ticketero-network:
