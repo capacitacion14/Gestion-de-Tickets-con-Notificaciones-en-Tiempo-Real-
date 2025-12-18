@@ -112,6 +112,28 @@ public class TelegramBotService {
         try {
             TicketResponse ticket = ticketService.createFromTelegram(nationalId, chatId, queueType);
             log.info("✅ Ticket creado via Telegram - Número: {}, Chat: {}", ticket.numero(), chatId);
+            
+            String confirmationMessage = String.format("""
+                ✅ Ticket creado exitosamente
+                
+                🎫 Número: %s
+                🆔 Código: %s
+                👤 Cédula: %s
+                🏢 Cola: %s
+                ⏰ Creado: %s
+                ⏱️ Tiempo estimado: %d minutos
+                
+                Recibirás notificaciones cuando sea tu turno.
+                """,
+                ticket.numero(),
+                ticket.codigoReferencia(),
+                ticket.nationalId(),
+                ticket.queueType().name(),
+                ticket.createdAt().toString().replace('T', ' ').substring(0, 19),
+                ticket.estimatedWaitMinutes()
+            );
+            
+            sendMessage(chatId, confirmationMessage);
 
         } catch (Exception e) {
             log.error("❌ Error creando ticket para cédula {} en chat {}: {}", nationalId, chatId, e.getMessage(), e);

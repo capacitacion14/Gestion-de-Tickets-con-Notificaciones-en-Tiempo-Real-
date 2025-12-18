@@ -2,6 +2,7 @@ package com.banco.ticketero.service;
 
 import com.banco.ticketero.model.entity.OutboxMessage;
 import com.banco.ticketero.repository.OutboxMessageRepository;
+import com.banco.ticketero.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +20,7 @@ import java.util.List;
 public class TelegramService {
 
     private final OutboxMessageRepository outboxMessageRepository;
+    private final TicketRepository ticketRepository;
     private final RestTemplate restTemplate;
 
     @Value("${telegram.bot.token}")
@@ -50,9 +52,9 @@ public class TelegramService {
                 message.setIntentos(message.getIntentos() + 1);
                 if (message.getIntentos() >= 3) {
                     message.setEstadoEnvio(OutboxMessage.MessageStatus.FAILED);
-                    log.error("❌ Notification failed after 3 attempts: {}", message.getId());
+                    log.error("❌ Notification failed after 3 attempts: {} - Error: {}", message.getId(), e.getMessage());
                 } else {
-                    log.warn("⚠️ Notification attempt {} failed", message.getIntentos());
+                    log.warn("⚠️ Notification attempt {} failed - Error: {}", message.getIntentos(), e.getMessage());
                 }
             }
             outboxMessageRepository.save(message);
@@ -71,6 +73,15 @@ public class TelegramService {
     }
 
     private String buildMessageText(OutboxMessage message) {
+        var ticketOpt = ticketRepository.findById(message.getTicketId());
+        String ticketNumber = ticketOpt.map(ticket -> ticket.getNumero()).orElse("N/A");
+        String advisorName = ticketOpt.map(ticket -> 
+            ticket.getAssignedAdvisor() != null ? ticket.getAssignedAdvisor().getName() : "N/A"
+        ).orElse("N/A");
+        String moduleNumber = ticketOpt.map(ticket -> 
+            ticket.getAssignedModuleNumber() != null ? ticket.getAssignedModuleNumber().toString() : "N/A"
+        ).orElse("N/A");
+            
         return switch (message.getPlantilla()) {
             case "CONFIRMACION" -> """
                 ✅ Ticket creado exitosamente
@@ -83,22 +94,34 @@ public class TelegramService {
                 
                 Usa /status para ver el estado.
                 """;
-            case "PROXIMO" -> """
+            case "ALERTA" -> String.format("""
+                ⏰ ¡NOTIFICACIÓN!
+                
+                🎫 Ticket: %s
+                Faltan pocos minutos para que seas atendido.
+                
+                🚨 Esté alerta y prepárate.
+                📍 Dirígete al área de espera.
+                """, ticketNumber);
+            case "PROXIMO" -> String.format("""
                 🔔 ¡ATENCIÓN!
                 
+                🎫 Ticket: %s
                 Eres el siguiente en la cola.
                 Prepárate para ser atendido.
                 
                 📍 Dirígete al área de espera.
-                """;
-            case "TU_TURNO" -> """
+                """, ticketNumber);
+            case "TU_TURNO" -> String.format("""
                 🎫 ¡ES TU TURNO!
                 
-                Dirígete al MÓDULO DE ATENCIÓN AHORA.
+                🎫 Ticket: %s
+                👤 Ejecutivo: %s
+                🏢 Módulo: %s
                 
-                🏢 Un ejecutivo te está esperando.
+                Dirígete al MÓDULO DE ATENCIÓN AHORA.
                 ⏱️ No hagas esperar.
-                """;
+                """, ticketNumber, advisorName, moduleNumber);
             default -> "Notificación del sistema de tickets";
         };
     }
