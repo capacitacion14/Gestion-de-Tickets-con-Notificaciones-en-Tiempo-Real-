@@ -157,8 +157,18 @@ public class TicketService {
             .chatId(chatId)
             .build();
 
+        // Mensaje de alerta 5 segundos después
+        OutboxMessage alerta = OutboxMessage.builder()
+            .ticketId(ticket.getCodigoReferencia())
+            .plantilla("ALERTA")
+            .estadoEnvio(OutboxMessage.MessageStatus.PENDING)
+            .fechaProgramada(LocalDateTime.now().plusSeconds(5))
+            .chatId(chatId)
+            .build();
+
         outboxMessageRepository.save(confirmacion);
-        log.debug("Confirmation message scheduled for ticket: {}", ticket.getNumero());
+        outboxMessageRepository.save(alerta);
+        log.debug("Messages scheduled for ticket: {} (confirmation + alert)", ticket.getNumero());
     }
     
     private String getChatId(String telefono) {

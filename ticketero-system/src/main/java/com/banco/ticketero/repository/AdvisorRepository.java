@@ -18,7 +18,7 @@ public interface AdvisorRepository extends JpaRepository<Advisor, Long> {
     @Query("""
         SELECT a FROM Advisor a
         WHERE a.status = 'AVAILABLE'
-        AND :queueType MEMBER OF a.supportedQueues
+        AND a.supportedQueues LIKE CONCAT('%', :queueType, '%')
         ORDER BY a.assignedTicketsCount ASC, a.lastAssignmentAt ASC NULLS FIRST
         """)
     List<Advisor> findAvailableAdvisorsForQueue(@Param("queueType") String queueType);

@@ -98,7 +98,7 @@ public class AssignmentService {
                 .plantilla("PROXIMO")
                 .estadoEnvio(OutboxMessage.MessageStatus.PENDING)
                 .chatId(chatId)
-                .fechaProgramada(LocalDateTime.now())
+                .fechaProgramada(LocalDateTime.now().plusSeconds(25))
                 .build();
             
             outboxMessageRepository.save(message);
@@ -114,7 +114,7 @@ public class AssignmentService {
                 .plantilla("TU_TURNO")
                 .estadoEnvio(OutboxMessage.MessageStatus.PENDING)
                 .chatId(chatId)
-                .fechaProgramada(LocalDateTime.now())
+                .fechaProgramada(LocalDateTime.now().plusSeconds(30))
                 .build();
             
             outboxMessageRepository.save(message);
