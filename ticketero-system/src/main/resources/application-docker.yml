@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/ticketero_db
+    username: ticketero_user
+    password: ticketero_pass
+    driver-class-name: org.postgresql.Driver
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: ticketero_user
+    password: ticketero_pass
+
+logging:
+  level:
+    com.banco.ticketero: DEBUG
+    org.springframework.boot: INFO
