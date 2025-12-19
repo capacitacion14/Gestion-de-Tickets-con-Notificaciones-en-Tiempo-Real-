@@ -29,19 +29,19 @@ public class TicketProcessingScheduler {
     public void processWaitingTickets() {
         log.info("🔄 Scheduler running at {}", LocalDateTime.now());
         
-        // Procesar tickets EN_ESPERA que tengan más de 10 segundos
-        LocalDateTime tenSecondsAgo = LocalDateTime.now().minusSeconds(10);
+        // Procesar tickets EN_ESPERA que tengan más de 30 segundos
+        LocalDateTime thirtySecondsAgo = LocalDateTime.now().minusSeconds(30);
         
         for (com.banco.ticketero.model.QueueType queueType : com.banco.ticketero.model.QueueType.values()) {
             List<Ticket> queueTickets = ticketRepository
                 .findByQueueTypeAndStatusOrderByCreatedAtAsc(queueType, TicketStatus.EN_ESPERA);
             
-            // Filtrar solo tickets con más de 10 segundos
+            // Filtrar solo tickets con más de 30 segundos
             List<Ticket> eligibleTickets = queueTickets.stream()
-                .filter(ticket -> ticket.getCreatedAt().isBefore(tenSecondsAgo))
+                .filter(ticket -> ticket.getCreatedAt().isBefore(thirtySecondsAgo))
                 .toList();
             
-            log.info("📋 Queue {}: {} total tickets, {} eligible (>10s)", queueType, queueTickets.size(), eligibleTickets.size());
+            log.info("📋 Queue {}: {} total tickets, {} eligible (>30s)", queueType, queueTickets.size(), eligibleTickets.size());
             
             if (eligibleTickets.isEmpty()) continue;
             
@@ -77,18 +77,30 @@ public class TicketProcessingScheduler {
                 ticketRepository.save(firstTicket);
                 advisorRepository.save(advisor);
                 
-                // Programar mensaje TU_TURNO inmediatamente
+                // Programar mensaje PROXIMO inmediatamente y TU_TURNO 5 segundos después
                 String chatId = getChatId(firstTicket.getTelefono());
                 if (chatId != null) {
+                    // Mensaje PROXIMO inmediato
+                    com.banco.ticketero.model.entity.OutboxMessage proximo = com.banco.ticketero.model.entity.OutboxMessage.builder()
+                        .ticketId(firstTicket.getCodigoReferencia())
+                        .plantilla("PROXIMO")
+                        .estadoEnvio(com.banco.ticketero.model.entity.OutboxMessage.MessageStatus.PENDING)
+                        .chatId(chatId)
+                        .fechaProgramada(LocalDateTime.now())
+                        .build();
+                    
+                    // Mensaje TU_TURNO 5 segundos después
                     com.banco.ticketero.model.entity.OutboxMessage tuTurno = com.banco.ticketero.model.entity.OutboxMessage.builder()
                         .ticketId(firstTicket.getCodigoReferencia())
                         .plantilla("TU_TURNO")
                         .estadoEnvio(com.banco.ticketero.model.entity.OutboxMessage.MessageStatus.PENDING)
                         .chatId(chatId)
-                        .fechaProgramada(LocalDateTime.now())
+                        .fechaProgramada(LocalDateTime.now().plusSeconds(5))
                         .build();
+                    
+                    outboxMessageRepository.save(proximo);
                     outboxMessageRepository.save(tuTurno);
-                    log.info("📩 TU_TURNO message scheduled IMMEDIATELY for ticket {}", firstTicket.getNumero());
+                    log.info("📩 PROXIMO message scheduled IMMEDIATELY and TU_TURNO in 5 seconds for ticket {}", firstTicket.getNumero());
                 }
                 
                 log.info("🎫 Ticket {} assigned to advisor {} at module {}", 

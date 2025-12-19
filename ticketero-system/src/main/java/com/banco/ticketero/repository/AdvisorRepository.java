@@ -24,4 +24,6 @@ public interface AdvisorRepository extends JpaRepository<Advisor, Long> {
     List<Advisor> findAvailableAdvisorsForQueue(@Param("queueType") String queueType);
 
     long countByStatus(AdvisorStatus status);
+    
+    long countByStatus(String status);
 }
