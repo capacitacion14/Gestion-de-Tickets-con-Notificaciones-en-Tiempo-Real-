@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class QueueTypeTest {
 
     @Test
-    void calculateEstimatedTime_conPosicion1_debeRetornarTiempoPromedio() {
+    void calculateEstimatedTime_withPosition1_shouldReturnAverageTime() {
         // Given
         QueueType queueType = QueueType.CAJA;
         int position = 1;
@@ -22,7 +22,7 @@ class QueueTypeTest {
     }
 
     @Test
-    void calculateEstimatedTime_conPosicion5_debeMultiplicarCorrectamente() {
+    void calculateEstimatedTime_withPosition5_shouldMultiplyCorrectly() {
         // Given
         QueueType queueType = QueueType.PERSONAL_BANKER;
         int position = 5;
@@ -35,7 +35,7 @@ class QueueTypeTest {
     }
 
     @Test
-    void getPrefijo_debeRetornarPrefijoCorrectoPorCola() {
+    void getPrefijo_shouldReturnCorrectPrefixPerQueue() {
         assertThat(QueueType.CAJA.getPrefijo()).isEqualTo("C");
         assertThat(QueueType.PERSONAL_BANKER.getPrefijo()).isEqualTo("P");
         assertThat(QueueType.EMPRESAS.getPrefijo()).isEqualTo("E");
@@ -43,19 +43,19 @@ class QueueTypeTest {
     }
 
     @Test
-    void getPrioridad_debeRetornarOrdenCorrecto() {
+    void getPrioridad_shouldReturnCorrectOrder() {
         assertThat(QueueType.CAJA.getPrioridad()).isEqualTo(1);
         assertThat(QueueType.GERENCIA.getPrioridad()).isEqualTo(4);
     }
 
     @Test
-    void getVigenciaMinutos_debeRetornarTiempoVigencia() {
+    void getVigenciaMinutos_shouldReturnValidityTime() {
         assertThat(QueueType.CAJA.getVigenciaMinutos()).isEqualTo(60);
         assertThat(QueueType.GERENCIA.getVigenciaMinutos()).isEqualTo(240);
     }
 
     @Test
-    void getTiempoPromedioMinutos_debeRetornarTiempoAtencion() {
+    void getTiempoPromedioMinutos_shouldReturnAverageAttentionTime() {
         assertThat(QueueType.CAJA.getTiempoPromedioMinutos()).isEqualTo(5);
         assertThat(QueueType.EMPRESAS.getTiempoPromedioMinutos()).isEqualTo(20);
     }

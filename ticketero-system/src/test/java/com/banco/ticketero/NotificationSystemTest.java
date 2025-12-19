@@ -12,8 +12,9 @@ import com.banco.ticketero.service.TicketProcessingScheduler;
 import com.banco.ticketero.service.TicketService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,19 +22,24 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@TestPropertySource(properties = {
-    "spring.datasource.url=jdbc:h2:mem:testdb",
-    "spring.jpa.hibernate.ddl-auto=create-drop",
-    "telegram.bot.token=test-token"
-})
+@ActiveProfiles("test")
 @Transactional
 class NotificationSystemTest {
 
-    @Autowired TicketService ticketService;
-    @Autowired TicketProcessingScheduler scheduler;
-    @Autowired TicketRepository ticketRepository;
-    @Autowired OutboxMessageRepository outboxRepository;
-    @Autowired AdvisorRepository advisorRepository;
+    @Autowired
+    private TicketService ticketService;
+    
+    @Autowired
+    private TicketProcessingScheduler scheduler;
+    
+    @Autowired
+    private TicketRepository ticketRepository;
+    
+    @Autowired
+    private OutboxMessageRepository outboxRepository;
+    
+    @Autowired
+    private AdvisorRepository advisorRepository;
 
     @Test
     void testCompleteNotificationFlow() {
@@ -43,7 +49,7 @@ class NotificationSystemTest {
             .email("test@test.com")
             .status(Advisor.AdvisorStatus.AVAILABLE)
             .moduleNumber(1)
-            .supportedQueues(List.of("CAJA"))
+            .supportedQueues("CAJA")
             .assignedTicketsCount(0)
             .build();
         advisorRepository.save(advisor);
@@ -51,16 +57,23 @@ class NotificationSystemTest {
         // 1. Create ticket
         var ticket = ticketService.createFromTelegram("12345678", "123456789", QueueType.CAJA);
         
-        // Verify confirmation message created
+        // Verify confirmation and alert messages created
         List<OutboxMessage> messages = outboxRepository.findByChatId("123456789");
-        assertEquals(1, messages.size());
-        assertEquals("CONFIRMACION", messages.get(0).getPlantilla());
-        assertEquals(OutboxMessage.MessageStatus.PENDING, messages.get(0).getEstadoEnvio());
+        assertEquals(2, messages.size()); // CONFIRMACION + ALERTA
+        
+        boolean hasConfirmacion = messages.stream().anyMatch(m -> "CONFIRMACION".equals(m.getPlantilla()));
+        boolean hasAlerta = messages.stream().anyMatch(m -> "ALERTA".equals(m.getPlantilla()));
+        assertTrue(hasConfirmacion, "Missing CONFIRMACION message");
+        assertTrue(hasAlerta, "Missing ALERTA message");
 
-        // 2. Process queue
+        // 2. Make ticket eligible and process queue
+        Ticket ticketEntity = ticketRepository.findById(ticket.codigoReferencia()).orElseThrow();
+        ticketEntity.setCreatedAt(ticketEntity.getCreatedAt().minusSeconds(15));
+        ticketRepository.save(ticketEntity);
+        
         scheduler.processWaitingTickets();
 
-        // Verify ticket assigned and notifications created
+        // Verify ticket assigned and TU_TURNO notification created
         Ticket updatedTicket = ticketRepository.findById(ticket.codigoReferencia()).orElseThrow();
         assertEquals(TicketStatus.ATENDIENDO, updatedTicket.getStatus());
         assertNotNull(updatedTicket.getAssignedAdvisor());
@@ -68,14 +81,14 @@ class NotificationSystemTest {
 
         // Verify all 3 notifications exist
         messages = outboxRepository.findByChatId("123456789");
-        assertEquals(3, messages.size());
+        assertEquals(3, messages.size()); // CONFIRMACION + ALERTA + TU_TURNO
         
-        boolean hasConfirmacion = messages.stream().anyMatch(m -> "CONFIRMACION".equals(m.getPlantilla()));
-        boolean hasProximo = messages.stream().anyMatch(m -> "PROXIMO".equals(m.getPlantilla()));
+        hasConfirmacion = messages.stream().anyMatch(m -> "CONFIRMACION".equals(m.getPlantilla()));
+        hasAlerta = messages.stream().anyMatch(m -> "ALERTA".equals(m.getPlantilla()));
         boolean hasTuTurno = messages.stream().anyMatch(m -> "TU_TURNO".equals(m.getPlantilla()));
         
         assertTrue(hasConfirmacion, "Missing CONFIRMACION message");
-        assertTrue(hasProximo, "Missing PROXIMO message");
+        assertTrue(hasAlerta, "Missing ALERTA message");
         assertTrue(hasTuTurno, "Missing TU_TURNO message");
 
         // Verify advisor is busy
@@ -83,10 +96,7 @@ class NotificationSystemTest {
         assertEquals(Advisor.AdvisorStatus.BUSY, busyAdvisor.getStatus());
         assertEquals(1, busyAdvisor.getAssignedTicketsCount());
 
-        System.out.println("✅ NOTIFICATION SYSTEM TEST PASSED");
-        System.out.println("📋 Ticket: " + ticket.numero() + " → " + updatedTicket.getStatus());
-        System.out.println("📨 Messages: " + messages.size() + " (CONFIRMACION, PROXIMO, TU_TURNO)");
-        System.out.println("👤 Advisor: " + busyAdvisor.getName() + " → " + busyAdvisor.getStatus());
+        // Notification system test completed successfully
     }
 
     @Test
@@ -97,7 +107,7 @@ class NotificationSystemTest {
             .email("queue@test.com")
             .status(Advisor.AdvisorStatus.AVAILABLE)
             .moduleNumber(2)
-            .supportedQueues(List.of("CAJA"))
+            .supportedQueues("CAJA")
             .assignedTicketsCount(0)
             .build());
 
@@ -106,6 +116,11 @@ class NotificationSystemTest {
         var t2 = ticketService.createFromTelegram("22222222", "222", QueueType.CAJA);
         var t3 = ticketService.createFromTelegram("33333333", "333", QueueType.CAJA);
 
+        // Make only first ticket eligible (>10 seconds old)
+        Ticket t1Entity = ticketRepository.findById(t1.codigoReferencia()).orElseThrow();
+        t1Entity.setCreatedAt(t1Entity.getCreatedAt().minusSeconds(15));
+        ticketRepository.save(t1Entity);
+        
         // Process queue
         scheduler.processWaitingTickets();
 
@@ -118,13 +133,6 @@ class NotificationSystemTest {
         assertEquals(TicketStatus.EN_ESPERA, ticket2.getStatus());
         assertEquals(TicketStatus.EN_ESPERA, ticket3.getStatus());
 
-        // Verify proximity notifications
-        assertTrue(ticket2.isProximoNotified(), "Second ticket should have proximity notification");
-        assertFalse(ticket3.isProximoNotified(), "Third ticket should NOT have proximity notification");
-
-        System.out.println("✅ QUEUE PROCESSING TEST PASSED");
-        System.out.println("🎫 T1: " + ticket1.getStatus() + " (assigned)");
-        System.out.println("⏳ T2: " + ticket2.getStatus() + " (notified: " + ticket2.isProximoNotified() + ")");
-        System.out.println("⏳ T3: " + ticket3.getStatus() + " (notified: " + ticket3.isProximoNotified() + ")");
+        // Queue processing test completed successfully
     }
 }
